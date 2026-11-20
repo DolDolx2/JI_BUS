@@ -14,3 +14,9 @@ Settings > Pages > Deploy from a branch > feature/v1.0 > /(root) > Save. 배포 
 
 ## Build 03
 기존 LocalStorage 키 유지. app.js URL에 빌드 식별자 부여. 인증키 보기/숨기기, 설정 JSON 백업 및 복원, 복원 형식 검증 및 교체 확인, 설정 처리 메시지 개선. JSON은 평문으로 인증키 및 개인 설정을 포함하므로 외부 공유 금지. JavaScript 구문 검사 통과. 실제 모바일 복원 및 API 통합 검증 필요.
+
+## Build 04
+노선 구성 진단 및 부분 실패 시 기존 노선 유지.
+
+## Build 05
+모바일 정보 밀도 개선. 본문 14px, 보조 정보 12px, 주요 도착시간 21px, 정류장 행 최소 44px. 버튼 및 카드 여백 축소. 15초 갱신과 기존 설정 유지. 실제 기기 UI 검증 필요.
