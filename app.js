@@ -55,7 +55,17 @@ async function refresh(){
  }catch(e){if(rev===revision){$('cards').replaceChildren();status('조회 실패: '+e.message,true)}}finally{busy=false;if(rev!==revision&&tab!=='settings')refresh()}
 }
 $('key').value=cfg.key;
-$('saveKey').onclick=async()=>{cfg.key=$('key').value.trim();save();try{await api('arrival','getCtyCodeList');status('인증키 확인 성공')}catch(e){status(e.message,true)}};
+const keyFeedback=el('p');keyFeedback.setAttribute('role','status');keyFeedback.setAttribute('aria-live','polite');$('saveKey').after(keyFeedback);
+function keyMessage(t,error=false){keyFeedback.textContent=t;keyFeedback.className=error?'error':'muted';}
+if(cfg.key)keyMessage('인증키 저장됨 · 연결 확인 필요');
+$('saveKey').onclick=async()=>{
+ const btn=$('saveKey'),key=$('key').value.trim();if(!key){keyMessage('일반 인증키(Decoding)를 입력하세요.',true);return}
+ btn.disabled=true;btn.textContent='연결 확인 중…';keyMessage('인증키 저장 및 API 연결 확인 중…');
+ try{cfg.key=key;save();keyMessage('인증키 저장 완료 · API 연결 확인 중…');
+ await api('arrival','getCtyCodeList');keyMessage('인증키 저장 완료 · 버스도착정보 API 연결 성공. 아래에서 정류장을 검색하세요.');
+ }catch(e){keyMessage('처리 실패 또는 연결 미확인: '+(e.name==='TimeoutError'?'응답 시간 초과':e.message)+'. 활용 승인 및 인증키를 확인하세요.',true)}
+ finally{btn.disabled=false;btn.textContent='인증키 저장 및 확인'}
+};
 $('search').onclick=async()=>{let q=$('query').value.trim();if(!q)return;try{status('정류장 검색 중…');let items=await api('stop','getSttnNoList',{nodeNm:q});$('searchResults').replaceChildren();for(const x of items){let s=node(x);if(!s.id)continue;let b=el('button',name(s));b.onclick=()=>{let t=$('target').value;if(t==='favorite'){if(!cfg.favorites.some(x=>x.id===s.id))cfg.favorites.push(s)}else{cfg.stops[t]=s;cfg.routes=[];cfg.last=''}save();showSaved();status('정류장 저장 완료')};$('searchResults').append(b)}status(items.length+'개 검색 결과')}catch(e){status(e.message,true)}};
 $('build').onclick=async()=>{let btn=$('build');btn.disabled=true;try{if(!cfg.stops.board||!cfg.stops.exit||!cfg.stops.home)throw Error('출근 승차·하차 및 귀가 하차 정류장을 먼저 지정하세요.');let ids=new Map();for(const s of [cfg.stops.board,cfg.stops.home])for(const x of await api('stop','getSttnThrghRouteList',{nodeid:s.id}))if(x.routeid)ids.set(String(x.routeid),String(x.routeno));let routes=[];for(const [id,no] of ids){status('노선 구성 중 · '+no);let stops=(await api('route','getRouteAcctoThrghSttnList',{routeId:id})).map(x=>({...node(x),order:Number(x.nodeord)})).filter(x=>x.id&&Number.isFinite(x.order)).sort((a,b)=>a.order-b.order);if(stops.length)routes.push({id,no,stops})}cfg.routes=routes;save();status(routes.length+'개 노선 구성 완료 · 실제 방향은 정류장 순서 기준')}catch(e){status(e.message,true)}finally{btn.disabled=false}};
 $('homeStop').onchange=()=>{cfg.last=$('homeStop').value;save();revision++;refresh()};
