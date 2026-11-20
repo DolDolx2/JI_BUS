@@ -214,8 +214,8 @@ const backupPanel=el('div');backupPanel.append(el('h2','설정 백업 및 복원
 backup.onclick=()=>{try{const blob=new Blob([JSON.stringify({format:'JI_BUS_SETTINGS_V1',settings:cfg},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=el('a');a.href=url;a.download='JI_BUS_settings.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);status('백업 파일 다운로드 요청 완료')}catch(e){status('백업 실패: '+e.message,true)}};
 restore.onclick=()=>restoreInput.click();
 const validStop=s=>s&&typeof s.id==='string'&&s.id.length>0&&typeof s.name==='string';
-function validateBackup(data){const s=data?.settings;if(data?.format!=='JI_BUS_SETTINGS_V1'||!s||typeof s.key!=='string'||!s.stops||typeof s.stops!=='object'||!Array.isArray(s.favorites)||!s.favorites.every(validStop)||!Array.isArray(s.routes)||!Object.values(s.stops).every(validStop)||!s.routes.every(r=>typeof r.id==='string'&&typeof r.no==='string'&&Array.isArray(r.stops)&&r.stops.every(n=>validStop(n)&&Number.isFinite(n.order)))||typeof s.last!=='string')throw Error('지원하지 않는 백업 형식');return {key:s.key,stops:s.stops,favorites:s.favorites,routes:s.routes,last:s.last}}
-restoreInput.onchange=async()=>{try{const file=restoreInput.files[0];if(!file)return;if(file.size>10000000)throw Error('백업 파일 크기 초과');const next=validateBackup(JSON.parse(await file.text()));if(!confirm('현재 설정을 백업 내용으로 교체할까요?'))return;localStorage.setItem(store,JSON.stringify(next));cfg=next;transferCache.clear();extraHomeStops=[];revision++;$('key').value=cfg.key;showSaved();populateHome();keyMessage(cfg.key?'인증키 복원 완료 · 연결 확인 필요':'인증키 미설정');status('설정 복원 완료')}catch(e){status('복원 실패: '+e.message,true)}finally{restoreInput.value=''}};
+function validateBackup(data){const s=data?.settings;if(data?.format!=='JI_BUS_SETTINGS_V1'||!s||typeof s.key!=='string'||!s.stops||typeof s.stops!=='object'||!Array.isArray(s.favorites)||!s.favorites.every(validStop)||!Array.isArray(s.routes)||!Object.values(s.stops).every(validStop)||!s.routes.every(r=>typeof r.id==='string'&&typeof r.no==='string'&&Array.isArray(r.stops)&&r.stops.every(n=>validStop(n)&&Number.isFinite(n.order)))||typeof s.last!=='string')throw Error('지원하지 않는 백업 형식');return {key:s.key,stops:s.stops,favorites:s.favorites,routes:s.routes,last:s.last,...(Number.isFinite(s.routesBuiltAt)?{routesBuiltAt:s.routesBuiltAt}:{})}}
+restoreInput.onchange=async()=>{try{const file=restoreInput.files[0];if(!file)return;if(file.size>10000000)throw Error('백업 파일 크기 초과');const next=validateBackup(JSON.parse(await file.text()));if(!confirm('현재 설정을 백업 내용으로 교체할까요?'))return;localStorage.setItem(store,JSON.stringify(next));cfg=next;transferCache.clear();extraHomeStops=[];revision++;$('key').value=cfg.key;showSaved();if(cfg.routes.length)routeReport(cfg.routes);else $('routeReport').replaceChildren();populateHome();keyMessage(cfg.key?'인증키 복원 완료 · 연결 확인 필요':'인증키 미설정');status('설정 복원 완료')}catch(e){status('복원 실패: '+e.message,true)}finally{restoreInput.value=''}};
 
 $('saveKey').onclick=async()=>{
  const btn=$('saveKey'),key=$('key').value.trim();if(!key){keyMessage('일반 인증키(Decoding)를 입력하세요.',true);return}
@@ -225,15 +225,22 @@ $('saveKey').onclick=async()=>{
  }catch(e){keyMessage('처리 실패 또는 연결 미확인: '+(['TimeoutError','AbortError'].includes(e.name)?'응답 시간 초과':e.message)+'. 활용 승인 및 인증키를 확인하세요.',true)}
  finally{btn.disabled=false;btn.textContent='인증키 저장 및 확인'}
 };
-$('search').onclick=async()=>{let q=$('query').value.trim();if(!q){status('정류장 이름을 입력하세요.',true);return;}try{status('정류장 검색 중…');let items=await api('stop','getSttnNoList',{nodeNm:q});$('searchResults').replaceChildren();for(const x of items){let s=node(x);if(!s.id)continue;let b=el('button',name(s));b.onclick=()=>{let t=$('target').value;if(t==='favorite'){if(!cfg.favorites.some(x=>x.id===s.id))cfg.favorites.push(s)}else{cfg.stops[t]=s;cfg.routes=[];cfg.last=''}save();showSaved();status('정류장 저장 완료 · '+name(s))};$('searchResults').append(b)}status(items.length+'개 검색 결과')}catch(e){status(e.message,true)}};
+$('search').onclick=async()=>{let q=$('query').value.trim();if(!q){status('정류장 이름을 입력하세요.',true);return;}try{status('정류장 검색 중…');let items=await api('stop','getSttnNoList',{nodeNm:q});$('searchResults').replaceChildren();for(const x of items){let s=node(x);if(!s.id)continue;let b=el('button',name(s));b.onclick=()=>{let t=$('target').value;if(t==='favorite'){if(!cfg.favorites.some(x=>x.id===s.id))cfg.favorites.push(s)}else{cfg.stops[t]=s;cfg.routes=[];delete cfg.routesBuiltAt;cfg.last='';$('routeReport').replaceChildren()}save();showSaved();status('정류장 저장 완료 · '+name(s))};$('searchResults').append(b)}status(items.length+'개 검색 결과')}catch(e){status(e.message,true)}};
 function routeReport(routes,notes=[]){
- const out=el('div');out.append(el('h2','노선 구성 결과'));
- for(const [k,label] of [['board','출근 승차'],['exit','출근 하차'],['alt','출근 대체'],['home','귀가 하차']]){
- const s=cfg.stops[k];out.append(el('p',label+' · '+(s?name(s)+' / '+s.id:'미설정'),'muted'))}
- for(const r of routes){const line=el('p',r.no+' · '+r.stops.length+'개 정류장');let details=el('details');details.append(el('summary','경유 정류장 확인'));for(const s of r.stops)details.append(el('div',s.order+' · '+name(s)+' / '+s.id));out.append(line,details)}
- let work=routes.filter(r=>[cfg.stops.exit?.id,cfg.stops.alt?.id].filter(Boolean).some(b=>pairs(r.stops,cfg.stops.board?.id,b).length));
- out.prepend(el('p','수신 노선 '+routes.length+'개 / 출근 연결 '+work.length+'개'+(work.length?' ('+work.map(r=>r.no).join(', ')+')':'')));
- for(const note of notes)out.append(el('p',note,'error'));
+ const out=el('div',undefined,'routeResult');
+ const work=routes.filter(r=>[cfg.stops.exit?.id,cfg.stops.alt?.id].filter(Boolean).some(b=>pairs(r.stops,cfg.stops.board?.id,b).length));
+ const home=routes.filter(r=>r.stops.some((s,i)=>i>0&&s.id===cfg.stops.home?.id));
+ const failed=notes.length>0||!work.length||!home.length;
+ out.append(el('p',notes.length?'노선 구성 실패 · 기존 노선 유지':failed?'일부 연결 노선 없음':'노선 구성 완료',failed?'routeWarning':'routeSuccess'));
+ out.append(el('p','출근 '+work.length+'개 노선 · 귀가 '+home.length+'개 노선','muted'));
+ if(cfg.routesBuiltAt&&Number.isFinite(cfg.routesBuiltAt))out.append(el('p','마지막 정상 구성 · '+new Date(cfg.routesBuiltAt).toLocaleString('ko-KR'),'muted'));
+ if(failed){
+  const d=el('details',undefined,'routeDiagnostics');d.append(el('summary','상세 진단 정보'));
+  for(const note of notes)d.append(el('p',note,'error'));
+  for(const [k,label] of [['board','출근 승차'],['exit','출근 하차'],['alt','출근 대체'],['home','귀가 하차']]){const s=cfg.stops[k];d.append(el('p',label+' · '+(s?name(s)+' / '+s.id:'미설정'),'muted'))}
+  for(const r of routes){const detail=el('details');detail.append(el('summary',r.no+'번 · '+r.stops.length+'개 정류장'));for(const s of r.stops)detail.append(el('div',s.order+' · '+name(s)+' / '+s.id));d.append(detail)}
+  out.append(d)
+ }
  $('routeReport').replaceChildren(out);
 }
 const reportHost=el('div');reportHost.id='routeReport';$('build').after(reportHost);
@@ -248,10 +255,9 @@ $('build').onclick=async()=>{
  try{let items=await api('stop','getSttnThrghRouteList',{nodeid:s.id});if(!items.length)notes.push(name(s)+' · 경유 노선 응답 0건');for(const x of items)if(x.routeid)ids.set(String(x.routeid),String(x.routeno));}catch(e){notes.push(name(s)+' · '+e.message)}
  }
  for(const [id,no] of ids){status('노선 구성 중 · '+no);try{let stops=(await api('route','getRouteAcctoThrghSttnList',{routeId:id})).map(x=>({...node(x),order:Number(x.nodeord)})).filter(x=>x.id&&Number.isFinite(x.order)).sort((a,b)=>a.order-b.order);if(stops.length)routes.push({id,no,stops});else notes.push(no+' · 경유 정류장 0건')}catch(e){notes.push(no+' · '+e.message)}}
- routeReport(routes,notes);
- if(notes.length){status('일부 조회 실패 · 기존 노선 유지. 아래 진단 결과 확인 후 재시도하세요.',true);return}
- cfg.routes=routes;transferCache.clear();save();status(routes.length+'개 노선 구성 완료 · 아래 결과에서 출근 연결 노선을 확인하세요.',!routes.length);
- }catch(e){status(e.message,true);routeReport(routes,notes)}finally{btn.disabled=false}
+ if(notes.length){routeReport(routes,notes);status('',false);return}
+ cfg.routes=routes;cfg.routesBuiltAt=Date.now();transferCache.clear();save();routeReport(routes);status('',false);
+ }catch(e){status('',false);routeReport(routes,[...notes,e.message])}finally{btn.disabled=false}
 };
 const homeQuery=el('input'),homeSearch=el('button','정류장 검색'),homeSearchList=el('div',undefined,'results');
 homeQuery.placeholder='직행·환승 탑승 정류장 검색';$('homeStop').after(homeQuery,homeSearch,homeSearchList);
