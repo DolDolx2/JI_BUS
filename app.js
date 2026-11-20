@@ -42,9 +42,9 @@ function vehicleIndex(r,v){const matches=r.stops.map((s,i)=>s.id===String(v.node
 function etaLabel(s){s=Math.max(0,Math.ceil(s));return s===0?'도착 예정':s<=120?Math.floor(s/60)+'분 '+String(s%60).padStart(2,'0')+'초':Math.ceil(s/60)+'분 후'}
 function setEta(e,seconds,at=Date.now()){
  if(seconds==null||!Number.isFinite(Number(seconds))||Number(seconds)<0){delete e.dataset.eta;e.textContent='도착정보 없음';e.classList.remove('urgent');return}
- e.dataset.eta=String(at+Number(seconds)*1000);tickEta(e,Date.now())
+ e.dataset.eta=String(at+Number(seconds)*1000);e.dataset.sampled=String(at);tickEta(e,Date.now())
 }
-function tickEta(e,now){let s=(Number(e.dataset.eta)-now)/1000;e.textContent=s<=0?'도착 확인 중':etaLabel(s);e.classList.toggle('urgent',s<=120)}
+function tickEta(e,now){let s=(Number(e.dataset.eta)-now)/1000;e.textContent=now-Number(e.dataset.sampled)>45000?'정보 지연':s<=0?'도착 확인 중':etaLabel(s);e.classList.toggle('urgent',s<=120)}
 function busIcon(no){
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');
  svg.setAttribute('viewBox','0 0 52 43');svg.setAttribute('class','vehicleIcon');svg.setAttribute('aria-hidden','true');
@@ -82,7 +82,7 @@ function layoutTimeline(t,rebuild=false){
  for(const x of vehicles){if(x.i<start||x.i>end)continue;const raw=String(x.v.vehicleno??x.v.vehicleid??'').trim();const key=raw?'vehicle:'+raw:'anonymous:'+x.i+':'+x.idx;
   if(keep.has(key))continue;keep.add(key);let m=t.icons.get(key);const n=counts.get(x.i)||0;counts.set(x.i,n+1);
   if(!m){m=el('div',undefined,'vehicleMarker');m.append(busIcon(r.no));m.title=raw?'차량 '+raw:'차량 식별번호 미제공';t.markers.append(m);t.icons.set(key,m)}
-  const y=(x.i-start)*44+22;const xOffset=n===0?0:n===1?13:-13;
+  const y=(x.i-start)*44+22;const xOffset=n===0?0:n===1?9:-9;
   m.style.zIndex=String(10+n);m.classList.toggle('noMotion',rebuild||!raw||m.dataset.ready!=='1');
   m.style.transform='translate('+xOffset+'px,'+y+'px) translate(-50%,-50%)';
   if(n>2){m.hidden=true}else m.hidden=false;
@@ -94,7 +94,7 @@ function layoutTimeline(t,rebuild=false){
  let extra=[...counts.values()].reduce((n,x)=>n+Math.max(0,x-3),0);if(extra)t.info.textContent+=' · 중복 위치 차량 '+extra+'대 추가';
 }
 function updateTimeline(t,r,v,error='',role=''){
- t.r=r;t.role=role;t.error=error;if(!error){t.vehicles=v;t.stamp=Date.now()}layoutTimeline(t)
+ t.r=r;t.role=role;t.error=error;if(!error){t.vehicles=v;t.stamp=Date.now()}else if(!t.stamp&&v.length){t.vehicles=v}layoutTimeline(t)
 }
 function ensureCard(key,title,transfer=false){
  let o=liveCards.get(key);if(o)return o;
