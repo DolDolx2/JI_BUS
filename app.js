@@ -76,7 +76,33 @@ $('saveKey').onclick=async()=>{
  finally{btn.disabled=false;btn.textContent='인증키 저장 및 확인'}
 };
 $('search').onclick=async()=>{let q=$('query').value.trim();if(!q){status('정류장 이름을 입력하세요.',true);return;}try{status('정류장 검색 중…');let items=await api('stop','getSttnNoList',{nodeNm:q});$('searchResults').replaceChildren();for(const x of items){let s=node(x);if(!s.id)continue;let b=el('button',name(s));b.onclick=()=>{let t=$('target').value;if(t==='favorite'){if(!cfg.favorites.some(x=>x.id===s.id))cfg.favorites.push(s)}else{cfg.stops[t]=s;cfg.routes=[];cfg.last=''}save();showSaved();status('정류장 저장 완료 · '+name(s))};$('searchResults').append(b)}status(items.length+'개 검색 결과')}catch(e){status(e.message,true)}};
-$('build').onclick=async()=>{let btn=$('build');btn.disabled=true;try{if(!cfg.stops.board||!cfg.stops.exit||!cfg.stops.home)throw Error('출근 승차·하차 및 귀가 하차 정류장을 먼저 지정하세요.');let ids=new Map();for(const s of [cfg.stops.board,cfg.stops.home])for(const x of await api('stop','getSttnThrghRouteList',{nodeid:s.id}))if(x.routeid)ids.set(String(x.routeid),String(x.routeno));let routes=[];for(const [id,no] of ids){status('노선 구성 중 · '+no);let stops=(await api('route','getRouteAcctoThrghSttnList',{routeId:id})).map(x=>({...node(x),order:Number(x.nodeord)})).filter(x=>x.id&&Number.isFinite(x.order)).sort((a,b)=>a.order-b.order);if(stops.length)routes.push({id,no,stops})}cfg.routes=routes;save();status(routes.length+'개 노선 구성 완료 · 출근 또는 귀가 탭에서 확인하세요.')}catch(e){status(e.message,true)}finally{btn.disabled=false}};
+function routeReport(routes,notes=[]){
+ const out=el('div');out.append(el('h2','노선 구성 결과'));
+ for(const [k,label] of [['board','출근 승차'],['exit','출근 하차'],['alt','출근 대체'],['home','귀가 하차']]){
+ const s=cfg.stops[k];out.append(el('p',label+' · '+(s?name(s)+' / '+s.id:'미설정'),'muted'))}
+ for(const r of routes){const line=el('p',r.no+' · '+r.stops.length+'개 정류장');let details=el('details');details.append(el('summary','경유 정류장 확인'));for(const s of r.stops)details.append(el('div',s.order+' · '+name(s)+' / '+s.id));out.append(line,details)}
+ let work=routes.filter(r=>[cfg.stops.exit?.id,cfg.stops.alt?.id].filter(Boolean).some(b=>pairs(r.stops,cfg.stops.board?.id,b).length));
+ out.prepend(el('p','수신 노선 '+routes.length+'개 / 출근 연결 '+work.length+'개'+(work.length?' ('+work.map(r=>r.no).join(', ')+')':'')));
+ for(const note of notes)out.append(el('p',note,'error'));
+ $('routeReport').replaceChildren(out);
+}
+const reportHost=el('div');reportHost.id='routeReport';$('build').after(reportHost);
+if(cfg.routes.length)routeReport(cfg.routes);
+$('build').onclick=async()=>{
+ let btn=$('build');btn.disabled=true;let notes=[],routes=[];
+ try{
+ if(!cfg.stops.board||!cfg.stops.exit||!cfg.stops.home)throw Error('출근 승차·하차 및 귀가 하차 정류장을 먼저 지정하세요.');
+ let ids=new Map();
+ for(const s of [cfg.stops.board,cfg.stops.home]){
+ status('경유 노선 조회 중 · '+name(s));
+ try{let items=await api('stop','getSttnThrghRouteList',{nodeid:s.id});if(!items.length)notes.push(name(s)+' · 경유 노선 응답 0건');for(const x of items)if(x.routeid)ids.set(String(x.routeid),String(x.routeno));}catch(e){notes.push(name(s)+' · '+e.message)}
+ }
+ for(const [id,no] of ids){status('노선 구성 중 · '+no);try{let stops=(await api('route','getRouteAcctoThrghSttnList',{routeId:id})).map(x=>({...node(x),order:Number(x.nodeord)})).filter(x=>x.id&&Number.isFinite(x.order)).sort((a,b)=>a.order-b.order);if(stops.length)routes.push({id,no,stops});else notes.push(no+' · 경유 정류장 0건')}catch(e){notes.push(no+' · '+e.message)}}
+ routeReport(routes,notes);
+ if(notes.length){status('일부 조회 실패 · 기존 노선 유지. 아래 진단 결과 확인 후 재시도하세요.',true);return}
+ cfg.routes=routes;save();status(routes.length+'개 노선 구성 완료 · 아래 결과에서 출근 연결 노선을 확인하세요.',!routes.length);
+ }catch(e){status(e.message,true);routeReport(routes,notes)}finally{btn.disabled=false}
+};
 $('homeStop').onchange=()=>{cfg.last=$('homeStop').value;save();revision++;refresh()};
 $('gps').onclick=()=>{if(!navigator.geolocation){$('gpsInfo').textContent='GPS 미지원';return}navigator.geolocation.getCurrentPosition(p=>{let rad=x=>x*Math.PI/180,lat=p.coords.latitude,lon=p.coords.longitude;let list=homeCandidates().filter(s=>Number.isFinite(s.lat)&&Number.isFinite(s.lon)&&s.lat!==0&&s.lon!==0).map(s=>{let h=Math.sin(rad(s.lat-lat)/2)**2+Math.cos(rad(lat))*Math.cos(rad(s.lat))*Math.sin(rad(s.lon-lon)/2)**2;return {...s,distance:6371000*2*Math.asin(Math.sqrt(Math.min(1,h)))}}).sort((a,b)=>a.distance-b.distance);populateHome(list);$('gpsInfo').textContent=list.length?'직선거리 기준 · 가까운 정류장부터 표시':'좌표 정보 없음 · 직접 선택';if(!list.length)populateHome()},e=>{$('gpsInfo').textContent='위치 확인 실패 · 직접 선택 가능'},{enableHighAccuracy:true,timeout:12000})};
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));$('refresh').onclick=refresh;setInterval(()=>{if(!document.hidden)refresh()},15000);switchTab(cfg.routes.length?'work':'settings');
