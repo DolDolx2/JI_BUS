@@ -309,6 +309,21 @@ button.active,button.primary{background:#63d9f5;color:#092039;border-color:#63d9
 .dashWeather .weatherSource summary:focus-visible{outline:2px solid #7ce2f7;outline-offset:3px}
 .dashWeather .weatherSource p{margin:7px 0 0;color:#d4eafa}
 .dashWeather .weatherSource a{color:#bdeafa;text-decoration:underline}
+
+/* V1.3 Build 07 — cancellable, step-aware search progress dialog */
+.searchProgressOverlay[hidden]{display:none!important}
+.searchProgressOverlay{position:fixed;inset:0;z-index:9500;background:rgba(3,15,29,.73);display:grid;place-items:center;padding:18px;font-family:Pretendard,system-ui,sans-serif}
+.searchProgressPanel{width:min(100%,390px);background:linear-gradient(165deg,#102f50,#091c34);border:1px solid #366287;color:#e9f8ff;border-radius:21px;padding:25px 21px 21px;box-shadow:0 18px 65px #0009;text-align:center}
+.searchProgressIcon{width:64px;height:64px;display:grid;place-items:center;margin:0 auto 15px;border-radius:50%;color:#8ae4f8;background:#214c70}
+.searchProgressIcon svg{height:37px;width:37px}
+.searchProgressPanel h2{font-size:20px;font-weight:800;margin:0 0 12px;color:#f5fcff}
+.searchProgressPanel p{font-size:13px;line-height:1.6;color:#bfd8ea;margin:0 0 12px}
+.searchProgressTrack{position:relative;height:6px;border-radius:99px;background:#294f6d;margin:16px 0 21px;overflow:hidden}
+.searchProgressTrack::after{content:"";position:absolute;inset:0 auto 0 0;width:35%;border-radius:99px;background:#70dff5;animation:searchProgressTravel 1.25s ease-in-out infinite alternate}
+@keyframes searchProgressTravel{to{transform:translateX(185%)}}
+.searchProgressCancel{min-height:43px;min-width:150px;color:#e9f7ff!important;border-radius:10px!important;border:1px solid #507290!important;background:#234560!important;font-weight:750!important;cursor:pointer}
+.searchProgressCancel:focus-visible{outline:3px solid #78e2f9;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.searchProgressTrack::after{animation:none;width:55%}}
 </style></head><body>
 <div id="introSplash" class="introSplash" role="region" aria-label="JI BUS 인트로">
  <div class="introInner">
@@ -345,9 +360,18 @@ button.active,button.primary{background:#63d9f5;color:#092039;border-color:#63d9
  timeout=setTimeout(enter,5000);
 })();
 </script>
+<div id="searchProgressOverlay" class="searchProgressOverlay" hidden>
+ <section class="searchProgressPanel" role="dialog" aria-modal="true" aria-labelledby="searchProgressTitle" aria-describedby="searchProgressMessage">
+  <div class="searchProgressIcon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="38" height="26" rx="7"/><path d="M8 24h32M17 12v12M31 12v12"/><circle cx="15" cy="37" r="4" fill="currentColor"/><circle cx="34" cy="37" r="4" fill="currentColor"/></svg></div>
+  <h2 id="searchProgressTitle">버스 경로를 찾고 있습니다</h2>
+  <p id="searchProgressMessage" role="status" aria-live="polite">이용 가능한 버스 노선을 확인하고 있습니다…</p>
+  <div class="searchProgressTrack" aria-hidden="true"></div>
+  <button id="searchProgressCancel" class="searchProgressCancel" type="button">검색 취소</button>
+ </section>
+</div>
 <main>
 <div class="topbar">
-<header><div><h1>JI BUS</h1><small>V1.3 · 청주 실시간 버스 · Build 06</small></div><button id="refresh" type="button" aria-label="실시간 정보 갱신"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5 9a7 7 0 0 1 12-4l3 7M4 12l3 7a7 7 0 0 0 12-4"/></svg>갱신</button></header>
+<header><div><h1>JI BUS</h1><small>V1.3 · 청주 실시간 버스 · Build 07</small></div><button id="refresh" type="button" aria-label="실시간 정보 갱신"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5 9a7 7 0 0 1 12-4l3 7M4 12l3 7a7 7 0 0 0 12-4"/></svg>갱신</button></header>
 <nav aria-label="주 메뉴"><button type="button" data-tab="home">홈</button><button type="button" data-tab="search">버스 검색</button><button type="button" data-tab="favorites">즐겨찾기</button><button type="button" data-tab="settings">설정</button></nav>
 </div>
 <section id="dashboardPanel" aria-label="JI BUS 대시보드">
@@ -400,7 +424,7 @@ button.active,button.primary{background:#63d9f5;color:#092039;border-color:#63d9
 </main><script>
 /* V1.3 Build 05: check the deployed version on every page opening. */
 (async function boot(){
-  const current='20261121.1306';
+  const current='20261121.1307';
   const versionUrl=new URL('./version.json',location.href);
   versionUrl.searchParams.set('check',String(Date.now()));
   let deployed=current;

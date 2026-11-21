@@ -24,12 +24,55 @@ function planRetry(e){recordError(e,'실시간 조회');const type=failureClass(
 }
 function resetFailures(){retryCount=0;authBlocked=false;clearRetry()}
 
+/* Build 07: only user-initiated route discovery uses a modal.
+   Live 15-second refresh and fuzzy typing NEVER show a modal. */
+let activeSearchProgress=null;
+let searchProgressSequence=0;
+function beginSearchProgress(title,onCancel){
+ if(activeSearchProgress)cancelSearchProgress();
+ const work={id:++searchProgressSequence,controllers:new Set(),onCancel,timer:null,visible:false};
+ activeSearchProgress=work;
+ const overlay=$('searchProgressOverlay');
+ $('searchProgressTitle').textContent=title;
+ $('searchProgressMessage').textContent='검색을 준비하고 있습니다…';
+ overlay.hidden=true;
+ work.timer=setTimeout(()=>{
+  if(activeSearchProgress===work){
+   overlay.hidden=false;work.visible=true;$('searchProgressCancel').focus()
+  }
+ },300);
+ return work
+}
+function searchProgressStep(work,message){
+ if(activeSearchProgress===work)$('searchProgressMessage').textContent=message
+}
+function endSearchProgress(work){
+ if(activeSearchProgress!==work)return;
+ clearTimeout(work.timer);
+ $('searchProgressOverlay').hidden=true;
+ activeSearchProgress=null
+}
+function cancelSearchProgress(){
+ const work=activeSearchProgress;
+ if(!work)return;
+ endSearchProgress(work);
+ for(const controller of work.controllers)controller.abort();
+ work.controllers.clear();
+ if(typeof work.onCancel==='function')work.onCancel();
+}
+$('searchProgressCancel').onclick=cancelSearchProgress;
+
 const services={stop:'BusSttnInfoInqireService',route:'BusRouteInfoInqireService',arrival:'ArvlInfoInqireService',location:'BusLcInfoInqireService'};
 async function api(service,method,params={}){
  if(!cfg.key)throw Error('환경설정에서 인증키를 입력하세요.');
  let u=new URL('https://apis.data.go.kr/1613000/'+services[service]+'/'+method);
  u.search=new URLSearchParams({serviceKey:cfg.key,cityCode:'33010',_type:'json',numOfRows:'1000',pageNo:'1',...params});
- const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);let res;try{res=await fetch(u,{signal:controller.signal,cache:'no-store'})}finally{clearTimeout(timer)};if(!res.ok){const e=Error('API HTTP '+res.status+' — 인증키 및 활용 승인 확인');e.status=res.status;
+ const controller=new AbortController(),progress=activeSearchProgress;
+ if(progress)progress.controllers.add(controller);
+ const timer=setTimeout(()=>controller.abort(),15000);
+ let res;try{res=await fetch(u,{signal:controller.signal,cache:'no-store'})}
+ finally{clearTimeout(timer);if(progress)progress.controllers.delete(controller)}
+ if(progress&&activeSearchProgress!==progress)throw new DOMException('검색이 취소되었습니다.','AbortError');if(!res.ok){const e=Error('API HTTP '+res.status+' — 인증키 및 활용 승인 확인');e.status=res.status;
  if(res.status===429){const retry=res.headers.get('Retry-After');if(retry){const n=Number(retry);e.retryAfterMs=Number.isFinite(n)?Math.max(0,n*1000):Math.max(0,Date.parse(retry)-Date.now())}}
  throw e}
  let json=await res.json(),h=json.response?.header,body=json.response?.body;
@@ -677,10 +720,16 @@ nearbyButton.onclick=()=>{
  if(!cfg.key){
   showStopSearchState(nearbyResults,'설정에서 API 인증키를 먼저 등록하세요.',true);return
  }
+ const work=beginSearchProgress('주변 정류장을 찾고 있습니다',()=>{
+  ++nearbySerial;nearbyButton.disabled=false;nearbyResults.replaceChildren();
+  showStopSearchState(nearbyResults,'주변 정류장 검색을 취소했습니다.')
+ });
  nearbyButton.disabled=true;
+ searchProgressStep(work,'현재 GPS 위치를 확인하고 있습니다. 위치 접근을 허용해 주세요.');
  showStopSearchState(nearbyResults,'현재 위치 확인 중… 위치 접근을 허용해 주세요.');
  navigator.geolocation.getCurrentPosition(async position=>{
-  if(serial!==nearbySerial)return;
+  if(serial!==nearbySerial){endSearchProgress(work);return}
+  searchProgressStep(work,'주변 정류장을 조회하고 있습니다…');
   showStopSearchState(nearbyResults,'주변 정류장 검색 중… 잠시만 기다려 주세요.');
   try{
    const lat=position.coords.latitude,lon=position.coords.longitude;
@@ -692,6 +741,7 @@ nearbyButton.onclick=()=>{
     showStopSearchState(nearbyResults,'주변에서 정류장을 찾지 못했습니다. 이름으로 검색해 주세요.');return
    }
    nearbyResults.append(el('p','가까운 정류장 '+stops.length+'개 · 출발지를 선택하세요.','muted'));
+   searchProgressStep(work,'정류장별 운행 방향을 확인하고 있습니다…');
    const jobs=[];
    for(const stop of stops){
     const button=el('button',undefined,'nearbyStopCard');
@@ -725,13 +775,14 @@ nearbyButton.onclick=()=>{
    await Promise.all([worker(),worker(),worker()]);
   }catch(e){
    if(serial===nearbySerial)showStopSearchState(nearbyResults,'주변 정류장 검색 실패 · '+e.message,true)
-  }finally{if(serial===nearbySerial)nearbyButton.disabled=false}
+  }finally{endSearchProgress(work);if(serial===nearbySerial)nearbyButton.disabled=false}
  },error=>{
   if(serial!==nearbySerial)return;
   const message=error.code===1?'위치 접근이 거부되었습니다. 권한을 허용하거나 직접 검색해 주세요.':
    error.code===2?'현재 위치를 확인할 수 없습니다. 정류장 이름으로 검색해 주세요.':
    '위치 확인 시간이 초과되었습니다. 다시 시도하거나 직접 검색해 주세요.';
-  showStopSearchState(nearbyResults,message,true);nearbyButton.disabled=false
+  showStopSearchState(nearbyResults,message,true);nearbyButton.disabled=false;
+  endSearchProgress(work)
  },{enableHighAccuracy:true,timeout:12000,maximumAge:60000})
 };
 const toControl=stopSearchControl($('otherToResults'),stops=>{
@@ -770,19 +821,26 @@ async function searchTrip(){
  }
  if(!cfg.key){$('otherSelection').textContent='설정에서 API 인증키를 먼저 등록하세요';return}
  const button=$('findOther'),token=++revision;
+ const work=beginSearchProgress('버스 경로를 찾고 있습니다',()=>{
+  revision++;otherTrip.ready=false;otherTrip.routes=[];button.disabled=false;
+  $('otherSelection').textContent='경로 검색을 취소했습니다.';resetView()
+ });
  button.disabled=true;otherTrip.ready=false;otherTrip.routes=[];resetView();
  $('otherSelection').textContent='노선을 검색 중… 잠시만 기다려 주세요.';
  try{
   const ids=new Map(),candidateMap=new Map();
+  searchProgressStep(work,'출발지와 목적지의 정류장을 확인하고 있습니다…');
   for(const s of [...otherTrip.fromCandidates,...otherTrip.toCandidates]){
    for(const candidate of await expandDirectionalStops(s))candidateMap.set(candidate.id,candidate);
    if(token!==revision)return
   }
+  searchProgressStep(work,'이용 가능한 버스 노선을 확인하고 있습니다…');
   for(const candidate of candidateMap.values()){
    const items=await api('stop','getSttnThrghRouteList',{nodeid:candidate.id});
    if(token!==revision)return;
    for(const item of items)if(item.routeid)ids.set(String(item.routeid),String(item.routeno))
   }
+  searchProgressStep(work,'직행 및 환승 가능 경로를 분석하고 있습니다…');
   const routes=[];
   for(const [id,no] of ids){
    const variants=routeVariants(id,no,await api('route','getRouteAcctoThrghSttnList',{routeId:id}));
@@ -792,9 +850,10 @@ async function searchTrip(){
   otherTrip.routes=routes;otherTrip.ready=true;
   rememberTrip(otherTrip.from,otherTrip.to);
   $('otherSelection').textContent='노선 '+routes.length+'개 분석 완료 · 실시간 조회 중';
-  resetView();refresh()
+  searchProgressStep(work,'실시간 버스 도착정보를 확인하고 있습니다…');
+  resetView();await refresh()
  }catch(e){if(token===revision){$('otherSelection').textContent='경로 검색 실패: '+e.message;recordError(e,'버스 검색')}}
- finally{button.disabled=false}
+ finally{endSearchProgress(work);button.disabled=false}
 }
 $('findOther').onclick=searchTrip;
 if(validStop(cfg.lastTrip?.from)&&validStop(cfg.lastTrip?.to)){
@@ -970,13 +1029,19 @@ $('smartRecommend').onclick=()=>{
  if(!cfg.key){smartStatus('설정에서 API 인증키를 등록하세요.',true);return}
  if(!navigator.geolocation){smartStatus('GPS를 사용할 수 없습니다. 직접 검색을 이용해 주세요.',true);return}
  const token=++smartState.request,button=$('smartRecommend');
+ const work=beginSearchProgress('최적의 버스 경로를 찾고 있습니다',()=>{
+  ++smartState.request;button.disabled=false;
+  $('smartResults').replaceChildren();smartStatus('스마트 추천 검색을 취소했습니다.')
+ });
  button.disabled=true;
  $('smartResults').replaceChildren();
  smartStatus('현재 GPS 위치 확인 중… 위치 권한을 허용해 주세요.');
+ searchProgressStep(work,'현재 GPS 위치를 확인하고 있습니다. 위치 접근을 허용해 주세요.');
  navigator.geolocation.getCurrentPosition(async position=>{
-  if(token!==smartState.request){button.disabled=false;return}
+  if(token!==smartState.request){endSearchProgress(work);button.disabled=false;return}
   try{
    const lat=position.coords.latitude,lon=position.coords.longitude;
+   searchProgressStep(work,'주변 정류장과 목적지 경유노선을 분석하고 있습니다…');
    smartStatus('주변 정류장과 목적지 경유노선 분석 중…');
    const raw=await api('stop','getCrdntPrxmtSttnList',{gpsLati:String(lat),gpsLong:String(lon)});
    if(token!==smartState.request)return;
@@ -990,6 +1055,7 @@ $('smartRecommend').onclick=()=>{
     for(const x of items)if(x.routeid)routeIds.set(String(x.routeid),String(x.routeno||'노선번호 없음'))
    }
    // Partial results must be labelled: cap route downloads to avoid API exhaustion.
+   searchProgressStep(work,'이용 가능한 버스 노선과 운행 방향을 확인하고 있습니다…');
    const limited=[...routeIds].slice(0,20),variants=[];
    for(let i=0;i<limited.length;i+=3){
     const batch=await Promise.allSettled(limited.slice(i,i+3).map(async([id,no])=>smartRouteVariants(id,no)));
@@ -1001,6 +1067,7 @@ $('smartRecommend').onclick=()=>{
     smartStatus('직행 경로를 찾지 못했습니다. 반경 800m·최대 20개 목적지 노선을 확인했습니다. 환승 검색은 직접 검색에서 이용하세요.',true);
     return
    }
+   searchProgressStep(work,'실시간 버스 도착정보를 확인하고 있습니다…');
    smartStatus('실시간 도착정보 조회 중…');
    const shortlist=[...new Set(candidates.slice(0,20).map(c=>c.board.id))].slice(0,6);
    const arrivalMap=new Map();let arrivalFailed=0;
@@ -1015,11 +1082,11 @@ $('smartRecommend').onclick=()=>{
    smartStatus('추천 경로 '+smartState.results.length+'개 분석 · 목적지 경유 노선 '+limited.length+'개 검사'+(routeIds.size>limited.length?' (전체 '+routeIds.size+'개 중 일부)':''));
   }catch(error){
    if(token===smartState.request){smartStatus('추천 조회 실패: '+error.message,true);recordError(error,'스마트 추천')}
-  }finally{button.disabled=false}
+  }finally{endSearchProgress(work);button.disabled=false}
  },error=>{
   if(token!==smartState.request)return;
   smartStatus(error.code===1?'위치 권한이 거부되었습니다. 위치 접근을 허용해 주세요.':error.code===2?'현재 위치를 확인할 수 없습니다.':'GPS 응답 시간이 초과되었습니다.',true);
-  button.disabled=false
+  button.disabled=false;endSearchProgress(work)
  },{enableHighAccuracy:true,timeout:12000,maximumAge:60000})
 };
 
