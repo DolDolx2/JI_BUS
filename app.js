@@ -84,6 +84,39 @@ let extraHomeStops=[]; const transferCache=new Map();
 const otherTrip={from:null,to:null,routes:[],ready:false};
 function homeCandidates(){let m=new Map([...cfg.favorites,...extraHomeStops].filter(s=>s.id!==cfg.stops.home?.id).map(s=>[s.id,s]));for(const r of cfg.routes)for(let j=0;j<r.stops.length;j++)if(r.stops[j].id===cfg.stops.home?.id)for(let i=0;i<j;i++)if(r.stops[i].id!==cfg.stops.home.id)m.set(r.stops[i].id,r.stops[i]);return [...m.values()]}
 function populateHome(order){let list=order||homeCandidates().sort((a,b)=>Number(cfg.favorites.some(x=>x.id===b.id))-Number(cfg.favorites.some(x=>x.id===a.id))||a.name.localeCompare(b.name,'ko'));$('homeStop').replaceChildren(new Option('탑승 정류장 선택',''),...list.map(s=>new Option(name(s)+(s.distance!=null?' · '+Math.round(s.distance)+'m':''),s.id)));$('homeStop').value=cfg.last}
+// Build 11: keep the physical travel order of each direction separate.
+function routeVariants(id,no,raw){
+ const rows=raw.map((x,index)=>({...node(x),order:Number(x.nodeord),direction:x.updowncd==null&&x.updowncode==null?'':String(x.updowncd??x.updowncode),sourceIndex:index})).filter(x=>x.id&&Number.isFinite(x.order));
+ const directions=[...new Set(rows.map(x=>x.direction).filter(x=>x!==''))];
+ let groups=[];
+ if(directions.length>1&&rows.every(x=>x.direction!=='')){
+  groups=directions.map(direction=>rows.filter(x=>x.direction===direction));
+ }else{
+  // Some cities omit updowncd and restart nodeord at the turn-around.
+  // Only split at a clearly decreasing sequence; never guess a direction from names.
+  let current=[];
+  for(const x of rows){
+   if(current.length&&x.order<current[current.length-1].order){groups.push(current);current=[]}
+   current.push(x);
+  }
+  if(current.length)groups.push(current);
+ }
+ const knownDirections=groups.length>1&&directions.length>1;
+ const appearances=new Map();
+ if(groups.length>1)for(const group of groups)for(const x of group){
+  const key=x.id+'|'+x.order;
+  appearances.set(key,(appearances.get(key)||0)+1);
+ }
+ return groups.filter(g=>g.length).map((group,index)=>({
+  id:String(id),no:String(no),direction:knownDirections?group[0].direction:'',
+  segment:groups.length>1?String(index):'',
+  stops:[...group].sort((a,b)=>a.order-b.order||a.sourceIndex-b.sourceIndex).map(x=>({
+   id:x.id,name:x.name,no:x.no,lat:x.lat,lon:x.lon,order:x.order,
+   ambiguousDirection:groups.length>1&&(appearances.get(x.id+'|'+x.order)||0)>1
+  }))
+ }));
+}
+function directionLabel(r){return r.direction==='0'?'상행':r.direction==='1'?'하행':r.segment!==''&&r.segment!=null?'운행 구간 '+(Number(r.segment)+1):''}
 function selectedMatches(s,target){
  if(!s||!target)return false;if(s.id===target.id)return true;if(normStop(s.name)!==normStop(target.name))return false;
  const ll=[s.lat,s.lon,target.lat,target.lon];if(ll.every(x=>Number.isFinite(x)&&x!==0)){
@@ -102,12 +135,24 @@ function routesFor(){let out=[];for(const r of (tab==='other'?otherTrip.routes:c
 function switchTab(t){clearRetry();retryCount=0;tab=t;revision++;document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));$('settings').hidden=t!=='settings';$('homePanel').hidden=t!=='home';$('otherPanel').hidden=t!=='other';$('heading').hidden=t==='settings';resetView();$('heading').dataset.heading='';if(t==='settings'){showSaved();status('')}else{if(t==='home')populateHome();if(t==='other'&&!otherTrip.ready){$('heading').replaceChildren(el('h2','기타 경로 검색'),el('p','출발·도착 정류장 선택 후 노선 찾기','muted'));status('');return}refresh()}}
 // Build 08: persistent, keyed cards and vehicle markers.
 let lastGood=0, viewRevision=-1, autoOpened=false;
-const routeKey=r=>r.id+':'+r.i+':'+r.j;
+const routeKey=r=>r.id+':'+(r.segment??'')+':'+(r.direction??'')+':'+r.i+':'+r.j;
 const liveCards=new Map();
 const locationCache=new Map();
 const routeInfoCache=new Map();
 function resetView(){liveCards.clear();locationCache.clear();lastGood=0;autoOpened=false;viewRevision=revision;$('cards').replaceChildren()}
-function vehicleIndex(r,v){const matches=r.stops.map((s,i)=>s.id===String(v.nodeid)?i:-1).filter(i=>i>=0);const exact=matches.find(i=>r.stops[i].order===Number(v.nodeord));return exact!==undefined?exact:matches.length===1?matches[0]:-1}
+function vehicleIndex(r,v){
+ const direction=v.updowncd??v.updowncode;
+ if(r.direction!==''&&r.direction!=null&&direction!=null&&String(direction)!==r.direction)return -1;
+ const id=String(v.nodeid??v.nodeId??''),order=v.nodeord==null?NaN:Number(v.nodeord);
+ const matches=r.stops.map((stop,i)=>stop.id===id?i:-1).filter(i=>i>=0);
+ if(!matches.length)return -1;
+ const exact=Number.isFinite(order)?matches.filter(i=>r.stops[i].order===order):matches;
+ if(exact.length!==1)return -1;
+ // If two direction segments have the same nodeid/nodeord, the vehicle
+ // must also supply a direction code. Otherwise its direction is unknown.
+ if(r.stops[exact[0]].ambiguousDirection&&direction==null)return -1;
+ return exact[0]
+}
 function etaLabel(s){s=Math.max(0,Math.ceil(s));return s===0?'도착 예정':s<=120?Math.floor(s/60)+'분 '+String(s%60).padStart(2,'0')+'초':Math.ceil(s/60)+'분 후'}
 function setEta(e,seconds,at=Date.now()){
  if(seconds==null||!Number.isFinite(Number(seconds))||Number(seconds)<0){delete e.dataset.eta;e.textContent='도착정보 없음';e.classList.remove('urgent');return}
@@ -142,7 +187,7 @@ function layoutTimeline(t,rebuild=false){
   let suffix=role==='transfer'?' · 환승':i===r.i?' · 승차':i===r.j?' · 하차':role==='current'?' · 현재':'';
   const text=r.stops[i].name+suffix;if(cell.label.textContent!==text)cell.label.textContent=text
  }
- let info=primary?'최근 확인 위치 · '+r.stops[primary.i].name+' · '+(r.i-primary.i)+'정류장 전':'탑승 방향 차량 위치 미확인';
+ let info=primary?'최근 확인 위치 · +r.stops[primary.i].name+' · '+(r.i-primary.i)+'정류장 전':'탑승 방향 차량 위치 미확인 · 다른 방향 차량은 제외';
  if(primary&&primary.i<start)info+=' (표시 범위 밖)';
  if(t.error)info+=' · 위치 지연';
  if(t.info.textContent!==info)t.info.textContent=info;
@@ -201,7 +246,7 @@ function directCard(r,a,location,first,at,info){
  const key='direct:'+routeKey(r),o=ensureCard(key,r.no),av=arrivalsFor(a,r.id),v=av[0];
  textTo(o.path,r.stops[r.i].name+' → '+r.stops[r.j].name);
  textTo(o.meta,v?'남은 정류장 '+(v.arrprevstationcnt??'미제공')+' · 다음 차량 '+(av[1]?Math.ceil(Number(av[1].arrtime)/60)+'분 후':'정보 없음'):'현재 도착 예정 차량 없음');textTo(o.schedule,v?'':operatingText(info));
- textTo(o.flag,(first&&v?'가장 먼저 도착 · ':'')+(tab==='work'&&selectedMatches(r.stops[r.j],cfg.stops.alt)?'대체 경로 · 도보':'기본 경로'));
+ textTo(o.flag,(directionLabel(r)?directionLabel(r)+' · ':'')+(first&&v?'가장 먼저 도착 · ':'')+(tab==='work'&&selectedMatches(r.stops[r.j],cfg.stops.alt)?'대체 경로 · 도보':'기본 경로'));
  setEta(o.eta,v?.arrtime,at);
  if(!o.timeline){o.timeline=makeTimeline(r);o.details.append(o.timeline.wrap)}
  updateTimeline(o.timeline,r,location.v,location.e||'');
@@ -232,7 +277,7 @@ async function loadFirstRoutes(origin){
  const rows=await api('stop','getSttnThrghRouteList',{nodeid:origin}), ids=new Map();
  for(const x of rows)if(x.routeid)ids.set(String(x.routeid),String(x.routeno));
  let routes=[];
- for(const [id,no] of ids){let r=cfg.routes.find(r=>r.id===id);if(!r){let stops=(await api('route','getRouteAcctoThrghSttnList',{routeId:id})).map(x=>({...node(x),order:Number(x.nodeord)})).filter(x=>x.id&&Number.isFinite(x.order)).sort((a,b)=>a.order-b.order);r={id,no,stops}}if(r.stops.length)routes.push(r)}
+ for(const [id,no] of ids){let r=cfg.routes.filter(r=>r.id===id);if(!r.length){r=routeVariants(id,no,await api('route','getRouteAcctoThrghSttnList',{routeId:id}))}for(const variant of (Array.isArray(r)?r:[r]))if(variant.stops.length)routes.push(variant)}
  transferCache.set(origin,{time:Date.now(),routes});return routes;
 }
 const arrivalsFor=(rows,id)=>rows.filter(x=>String(x.routeid)===id&&x.arrtime!=null&&Number.isFinite(Number(x.arrtime))&&Number(x.arrtime)>=0).sort((a,b)=>Number(a.arrtime)-Number(b.arrtime));
@@ -365,7 +410,7 @@ $('build').onclick=async()=>{
  let candidates=[selected];try{candidates=await expandDirectionalStops(selected);if(!candidates.length)candidates=[selected]}catch(e){notes.push(selected.name+' 후보 조회 오류 · '+e.message)}
  for(const s of candidates){try{let items=await api('stop','getSttnThrghRouteList',{nodeid:s.id});for(const x of items)if(x.routeid)ids.set(String(x.routeid),String(x.routeno))}catch(e){notes.push(s.name+' · '+e.message)}}
  }
- for(const [id,no] of ids){status('노선 구성 중 · '+no);try{let stops=(await api('route','getRouteAcctoThrghSttnList',{routeId:id})).map(x=>({...node(x),order:Number(x.nodeord)})).filter(x=>x.id&&Number.isFinite(x.order)).sort((a,b)=>a.order-b.order);if(stops.length)routes.push({id,no,stops});else notes.push(no+' · 경유 정류장 0건')}catch(e){notes.push(no+' · '+e.message)}}
+ for(const [id,no] of ids){status('노선 구성 중 · '+no);try{const variants=routeVariants(id,no,await api('route','getRouteAcctoThrghSttnList',{routeId:id}));if(variants.length)routes.push(...variants);else notes.push(no+' · 경유 정류장 0건')}catch(e){notes.push(no+' · '+e.message)}}
  if(notes.length){routeReport(routes,notes);status('',false);return}
  cfg.routes=routes;cfg.routesBuiltAt=Date.now();transferCache.clear();save();routeReport(routes);status('',false);
  }catch(e){status('',false);routeReport(routes,[...notes,e.message])}finally{btn.disabled=false}
@@ -391,8 +436,8 @@ $('findOther').onclick=async()=>{
   for(const s of candidates){const items=await api('stop','getSttnThrghRouteList',{nodeid:s.id});for(const x of items)if(x.routeid)ids.set(String(x.routeid),String(x.routeno))}
   const results=[];
   for(const [id,no] of ids){let r=cfg.routes.find(x=>x.id===id);if(!r)r=otherTrip.routes.find(x=>x.id===id);
-   if(!r){let stops=(await api('route','getRouteAcctoThrghSttnList',{routeId:id})).map(x=>({...node(x),order:Number(x.nodeord)})).filter(x=>x.id&&Number.isFinite(x.order)).sort((a,b)=>a.order-b.order);r={id,no,stops}}
-   if(r.stops.length)results.push(r)
+   if(!r)r=routeVariants(id,no,await api('route','getRouteAcctoThrghSttnList',{routeId:id}));
+   for(const variant of (Array.isArray(r)?r:[r]))if(variant.stops.length)results.push(variant)
   }
   otherTrip.routes=results;otherTrip.ready=true;revision++;$('otherSelection').textContent='노선 '+results.length+'개 분석 · 실시간 도착 및 환승 검색';refresh();
  }catch(e){$('otherSelection').textContent='경로 검색 실패: '+e.message;recordError(e,'기타 검색')}
