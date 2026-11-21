@@ -222,6 +222,38 @@ button.active,button.primary{background:#63d9f5;color:#092039;border-color:#63d9
 .introAction{position:relative;z-index:2}
 @media(max-width:380px){.dashActions{gap:5px}.dashAction{min-height:96px}.dashAction span{font-size:11px}.dashAction small{font-size:9px}.dashWeather{padding:12px}#clockNow{font-size:23px}#weatherNow{font-size:18px}}
 @media(max-height:540px){.introScene{height:55px;margin-bottom:-20px}.introBrand{margin:8px 0}.introInner{min-height:0}}
+
+/* Build 03: immersive illustrated intro. Motion affects only the vehicle. */
+.introInner{padding:17px 16px 12px;min-height:min(530px,calc(100dvh - 32px));background:linear-gradient(160deg,#06213f 0%,#073562 54%,#08192e 100%)}
+.introTop{position:relative;z-index:2}
+.introIcon{border-radius:24px;padding:4px 9px;background:#0b5e96;color:#d8f7ff!important;font-size:11px!important}
+.introBrand{margin:10px 0 4px;gap:8px}
+.introBrand h2{font-size:37px}
+.introBrand p{font-size:13px}
+.introLogo{width:65px;height:65px;background:#0a5085}
+.introCity{font-size:11px;padding:5px 12px;background:#145684;color:#d6f3ff}
+.introIllustration{height:auto;max-height:none;aspect-ratio:420/260;margin:0 0 11px;width:100%;border-radius:12px;overflow:hidden;filter:none}
+.introAction{min-height:51px;border-radius:25px!important;font-size:16px!important;letter-spacing:-.01em}
+.introAuto{margin:7px 0 0}
+.introFooter{padding-top:6px}
+@media(max-height:600px){.introBrand{margin:4px 0 1px;gap:4px}.introLogo{width:42px;height:42px}.introLogo svg{width:27px;height:27px}.introBrand h2{font-size:25px}.introBrand p{font-size:11px}.introIllustration{max-height:180px;margin-bottom:5px}.introInner{padding:10px;min-height:0}}
+
+/* V1.3 Build 03: consistent semantic stop badges */
+.stopFlow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:13px;line-height:1.55}
+.stopFlowPoint{display:inline-flex;align-items:center;gap:6px;min-width:0}
+.stopFlowName{font-size:13px;font-weight:700;overflow-wrap:anywhere}
+.stopFlowArrow{font-size:17px;font-weight:700;color:var(--muted)}
+.stopBadge{display:inline-flex;align-items:center;justify-content:center;flex:none;font-weight:850;font-size:11px;line-height:1.1;letter-spacing:-.02em;border-radius:6px;padding:5px 7px;white-space:nowrap}
+.stopBadge-board{color:#062b27;background:#81e8c9;border:1px solid #81e8c9}
+.stopBadge-exit{color:#082b47;background:#89d7ff;border:1px solid #89d7ff}
+.stopBadge-transfer{color:#402800;background:#ffd47c;border:1px solid #ffd47c}
+.routePath{margin:8px 0;font-weight:normal}
+.timelineRows .stopname{display:flex;-webkit-line-clamp:unset;-webkit-box-orient:initial;align-items:center;gap:5px}
+.timelineRows .stopname .stopBadge{font-size:10px;padding:4px 5px}
+.timelineStopName{min-width:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.smartPath{margin:9px 0 7px}
+.smartCard .smartPath .stopFlowName{font-size:13px}
+@media(max-width:360px){.stopFlow{gap:4px}.stopFlowPoint{gap:4px}.stopBadge{font-size:10px;padding:4px 5px}.stopFlowName{font-size:12px}}
 </style></head><body>
 <div id="introSplash" class="introSplash" role="region" aria-label="JI BUS 인트로">
  <div class="introInner">
@@ -232,22 +264,56 @@ button.active,button.primary{background:#63d9f5;color:#092039;border-color:#63d9
    <p>내 위치에서 가장 좋은 버스를 찾다</p>
    <span class="introCity">청주시 시내버스 정보 전용</span>
   </div>
-  <svg class="introScene" viewBox="0 0 420 130" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><path d="M0 120h420V80h-38V39h-20v41h-20V50h-19v30h-35V23h-16v57h-21V55h-32v25h-32V48h-17v32h-30V60h-25v20H95V35H70v45H53V61H27v19H0z" fill="#0b3159"/><path d="M0 120h420v-24H0z" fill="#0a2948"/><path d="M308 51v-37m-6 6h12M296 65h24m-26 8h28m-25 8h22" stroke="#70badf" opacity=".65" stroke-width="2"/></svg>
-  <svg class="introRoad" viewBox="0 0 360 155" role="img" aria-label="청주시 버스가 왼쪽과 오른쪽으로 왕복하는 애니메이션">
-   <path d="M12 114 H348" stroke="#6087A7" stroke-width="3" stroke-dasharray="10 11" fill="none" opacity=".8"/>
-   <path d="M35 114 C105 114 111 52 176 73 S260 38 325 86" stroke="#499AC7" stroke-width="4.5" fill="none" stroke-linecap="round"/>
-   <circle cx="35" cy="114" r="7" fill="#7bd3ed"/>
-   <circle cx="325" cy="86" r="7" fill="#7bd3ed"/>
+  <svg class="introScene introIllustration" viewBox="0 0 420 260" preserveAspectRatio="xMidYMid meet" role="img" aria-label="청주시 도시 풍경 앞 도로를 달리는 청주시 버스">
+   <defs>
+    <linearGradient id="introSkyGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a3a6d"/><stop offset=".74" stop-color="#236c97"/><stop offset="1" stop-color="#174269"/></linearGradient>
+    <linearGradient id="introBusPaint" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c9f7ff"/><stop offset=".57" stop-color="#80d9eb"/><stop offset="1" stop-color="#48a9ce"/></linearGradient>
+    <linearGradient id="introWindowPaint" x1="0" y1="0" x2=".8" y2="1"><stop offset="0" stop-color="#37769a"/><stop offset="1" stop-color="#0a294b"/></linearGradient>
+    <linearGradient id="introStreetPaint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#284763"/><stop offset="1" stop-color="#06182e"/></linearGradient>
+   </defs>
+   <rect width="420" height="260" fill="url(#introSkyGradient)"/>
+   <g fill="#e7f9ff" opacity=".27"><path d="M10 45c8-16 34-19 47 0 12-8 26 3 25 14H0V51q1-9 10-6z"/><path d="M338 20c13-17 35-11 42 6 18-5 31 7 29 18h-82q-10-13 11-24z"/></g>
+   <path d="M0 145h420v30H0z" fill="#14547c" opacity=".75"/>
+   <g fill="#102e57">
+    <path d="M0 166v-62h25v62h8V93h31v73h11v-41h33v41h14V81h24v85h14v-60h28v60h15v-79h34v79h18v-57h18v57h15v-46h28v46h20v-75h25v75h13v-55h24v55h18v-32h22v32h13v-70h32v70h15v-48h24v48z"/>
+   </g>
+   <g fill="#8ac8ec" opacity=".32">
+    <path d="M39 103h5v6h-5zm10 0h5v6h-5zm-10 12h5v6h-5zm10 0h5v6h-5zm83-17h5v6h-5zm10 0h5v6h-5zm-15 12h5v6h-5zm10 0h5v6h-5zm67-3h5v6h-5zm11 0h5v6h-5zm0 12h5v6h-5zm-11 0h5v6h-5zm122-8h5v6h-5zm10 0h5v6h-5zm-10 12h5v6h-5zm10 0h5v6h-5z"/>
+   </g>
+   <g stroke="#9ed8f4" stroke-width="1.5" fill="none" opacity=".85">
+    <path d="M350 151v-79l-8-3 8-3-8-3 8-3-8-3 8-3m0 18 8-3-8-3 8-3-8-3 8-3 8-3"/>
+    <path d="M330 151h41M339 151l11-79 11 79M338 77h24M342 62h16M345 47h10M349 32h2"/>
+    <path d="M332 83h36M334 96h32"/>
+   </g>
+   <g><path d="M0 185q20-24 43-13t42 13q25-26 49-13t33 15q26-17 47-8 26 5 49 0 26-18 47-8t55 15 55-6v42H0z" fill="#154f59"/>
+    <path d="M0 202q25-14 53-5 33-18 59 0 40-10 78 2 27-16 61 1 33-9 61-1 42-16 108 0v24H0z" fill="#26725a"/>
+   </g>
+   <g stroke="#194d44" stroke-width="5" fill="none"><path d="M25 206v-49m-5 33-16-20m20 12 17-23M398 205v-57m-5 36-21-18m24 12 18-19"/></g>
+   <g fill="#409267"><circle cx="16" cy="158" r="25"/><circle cx="40" cy="168" r="23"/><circle cx="26" cy="142" r="18"/><circle cx="381" cy="149" r="23"/><circle cx="410" cy="168" r="25"/><circle cx="397" cy="137" r="18"/></g>
+   <g fill="#62b37c" opacity=".9"><circle cx="14" cy="156" r="14"/><circle cx="36" cy="165" r="14"/><circle cx="383" cy="146" r="13"/><circle cx="410" cy="166" r="16"/></g>
+   <path d="M0 208h420v52H0z" fill="url(#introStreetPaint)"/>
+   <path d="M0 213h420" stroke="#a3c8d9" stroke-width="3" opacity=".6"/>
+   <path d="M0 246h420" stroke="#d1edff" stroke-dasharray="31 27" stroke-width="2.5" opacity=".65"/>
+   <ellipse cx="220" cy="221" rx="117" ry="10" fill="#000c1f" opacity=".6"/>
    <g class="introAnimatedBus">
-    <g transform="translate(0 -21)">
-     <rect x="-40" y="-34" width="80" height="37" rx="9" fill="#7bd3ed"/>
-     <rect x="-31" y="-28" width="17" height="13" rx="3" fill="#163954"/>
-     <rect x="15" y="-28" width="17" height="13" rx="3" fill="#163954"/>
-     <text x="0" y="-15" font-family="Pretendard,system-ui,sans-serif" font-weight="800" font-size="15" fill="#0D2C46" text-anchor="middle">청주시</text>
-     <circle cx="-25" cy="4" r="7" fill="#E4F4FF"/>
-     <circle cx="25" cy="4" r="7" fill="#E4F4FF"/>
+    <g transform="translate(-80 -37)">
+     <path d="M5 22Q5 8 25 6L129 1q19-1 24 11l8 56q0 9-11 10H8Q1 78 2 69z" fill="url(#introBusPaint)" stroke="#b6effa" stroke-width="2"/>
+     <path d="M18 20q1-8 11-9l92-4q10 0 14 8l6 28H17z" fill="url(#introWindowPaint)"/>
+     <path d="M94 11v34m26-35 8 34M48 12v33" stroke="#a4edf8" stroke-width="3"/>
+     <path d="M7 50h147" stroke="#147bb3" stroke-width="7"/>
+     <rect x="116" y="53" width="35" height="21" rx="3" fill="#d9f8ff" opacity=".65"/>
+     <rect x="60" y="49" width="49" height="18" rx="5" fill="#0f77a7"/>
+     <text x="84" y="62" text-anchor="middle" font-family="Pretendard,Arial,sans-serif" font-size="13" font-weight="850" fill="#fff">청주시</text>
+     <rect x="114" y="16" width="38" height="15" rx="3" fill="#072a46"/>
+     <text x="133" y="27" text-anchor="middle" font-size="10" font-family="Pretendard,Arial,sans-serif" font-weight="800" fill="#ffcc53">청주시</text>
+     <path d="M5 60h8v10H6m147-15h7v10h-6" fill="#fff3c0"/>
+     <rect x="6" y="66" width="17" height="7" rx="2" fill="#f3ffff"/>
+     <rect x="145" y="65" width="13" height="7" rx="2" fill="#fff7d0"/>
+     <circle cx="36" cy="76" r="12" fill="#0b223b" stroke="#a4c7d8" stroke-width="3"/>
+     <circle cx="132" cy="76" r="12" fill="#0b223b" stroke="#a4c7d8" stroke-width="3"/>
+     <circle cx="36" cy="76" r="4" fill="#b8e1ef"/><circle cx="132" cy="76" r="4" fill="#b8e1ef"/>
     </g>
-    <animateMotion dur="3.2s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;0" keyTimes="0;0.5;1" rotate="0" path="M35 114 C105 114 111 52 176 73 S260 38 325 86"/>
+    <animateMotion dur="3s" repeatCount="indefinite" calcMode="linear" keyPoints="0;1;0" keyTimes="0;0.5;1" rotate="0" path="M194 192 H232"/>
    </g>
   </svg>
   <button id="introEnter" type="button" class="introAction">→ 버스 찾으러 가기</button>
@@ -275,14 +341,14 @@ button.active,button.primary{background:#63d9f5;color:#092039;border-color:#63d9
  try{
   if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){
    var animated=splash.querySelector('animateMotion');
-   if(animated){animated.remove();var bus=splash.querySelector('.introAnimatedBus');if(bus)bus.setAttribute('transform','translate(176 73)')}
+   if(animated){animated.remove();var bus=splash.querySelector('.introAnimatedBus');if(bus)bus.setAttribute('transform','translate(213 192)')}
   }
  }catch(error){}
 })();
 </script>
 <main>
 <div class="topbar">
-<header><div><h1>JI BUS</h1><small>V1.3 · 청주 실시간 버스 · Build 02</small></div><button id="refresh" type="button" aria-label="실시간 정보 갱신"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5 9a7 7 0 0 1 12-4l3 7M4 12l3 7a7 7 0 0 0 12-4"/></svg>갱신</button></header>
+<header><div><h1>JI BUS</h1><small>V1.3 · 청주 실시간 버스 · Build 03</small></div><button id="refresh" type="button" aria-label="실시간 정보 갱신"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5 9a7 7 0 0 1 12-4l3 7M4 12l3 7a7 7 0 0 0 12-4"/></svg>갱신</button></header>
 <nav aria-label="주 메뉴"><button type="button" data-tab="home">홈</button><button type="button" data-tab="search">버스 검색</button><button type="button" data-tab="favorites">즐겨찾기</button><button type="button" data-tab="settings">설정</button></nav>
 </div>
 <section id="dashboardPanel" aria-label="JI BUS 대시보드">
@@ -333,9 +399,9 @@ button.active,button.primary{background:#63d9f5;color:#092039;border-color:#63d9
 <section id="heading"></section><p id="status" role="status" aria-live="polite"></p><div id="cards"></div>
 <footer>JI BUS V1.3 · 디자인 및 개발 김정인</footer>
 </main><script>
-/* V1.3 Build 02: check the deployed version on every page opening. */
+/* V1.3 Build 03: check the deployed version on every page opening. */
 (async function boot(){
-  const current='20261121.1302';
+  const current='20261121.1303';
   const versionUrl=new URL('./version.json',location.href);
   versionUrl.searchParams.set('check',String(Date.now()));
   let deployed=current;

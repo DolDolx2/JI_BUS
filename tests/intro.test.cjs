@@ -1,4 +1,4 @@
-// JI BUS V1.2 Build 02 — splash entry and animation smoke test.
+// JI BUS V1.2 Build 03 — splash entry and animation smoke test.
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -13,8 +13,8 @@ assert.match(html,/<text[^>]+>청주시<\/text>/);
 assert.match(html,/repeatCount="indefinite"/);
 assert.match(html,/keyPoints="0;1;0"/);
 assert.match(html,/keyTimes="0;0\.5;1"/);
-assert.match(html,/V1\.3 · 청주 실시간 버스 · Build 02/);
-assert.match(scripts[1],/const current='20261121\.1302'/);
+assert.match(html,/V1\.3 · 청주 실시간 버스 · Build 03/);
+assert.match(scripts[1],/const current='20261121\.1303'/);
 const init=new Function('document','window','setTimeout','clearTimeout',scripts[0]);
 function fixture(reduced=false){
  const button={handlers:{},addEventListener(kind,fn){this.handlers[kind]=fn}};
@@ -44,5 +44,5 @@ automatic.timers[0].fn();
 assert.equal(automatic.splash.removed,true);
 const accessible=fixture(true);
 assert.equal(accessible.motion.removed,true);
-assert.equal(accessible.bus.transform,'translate(176 73)');
-console.log('JI BUS V1.2 Build 02 splash smoke tests PASS (18 assertions)');
+assert.equal(accessible.bus.transform,'translate(213 192)');
+console.log('JI BUS V1.2 Build 03 splash smoke tests PASS (18 assertions)');
