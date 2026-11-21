@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#155e75"><title>JI BUS V1.2</title><style>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#155e75"><title>JI BUS V1.3</title><style>
 *{box-sizing:border-box}body{margin:0;background:#eef3f6;color:#172c39;font:16px Pretendard,system-ui,sans-serif}main{max-width:540px;margin:auto;padding:18px}header,nav,.line{display:flex;align-items:center;justify-content:space-between;gap:8px}h1{margin:0;font-size:27px}small,.muted{color:#526879}nav{margin:20px 0}button,input,select{font:inherit;border:1px solid #c4d1da;border-radius:10px;padding:12px;background:white;color:inherit}button{cursor:pointer;font-weight:700}nav button{flex:1}button.active,button.primary{background:#155e75;color:white;border-color:#155e75}section,article{background:white;border:1px solid #dce5eb;border-radius:16px;padding:16px;margin-bottom:12px}input,select{width:100%;margin:6px 0 12px}label{display:block;font-weight:600}h2{font-size:19px;margin:0 0 12px}h3{margin:0;font-size:25px;color:#155e75}summary{cursor:pointer;padding:12px 0;color:#155e75;font-weight:700}.stoprow{display:grid;grid-template-columns:minmax(0,1fr) 70px;gap:14px;min-height:66px;align-items:stretch}.stopname{align-self:center;text-align:center;padding:12px 5px;border-radius:9px;background:#155e75;color:white;position:relative;overflow-wrap:anywhere}.stoprow:not(:last-child) .stopname:after{content:"";position:absolute;left:50%;top:100%;height:22px;border-left:2px solid #155e75}.stopname.board{background:#087f5b}.stopname.exit{background:#fff;color:#155e75;border:2px solid #155e75}.lane{background:#dce3e8;display:flex;align-items:center;justify-content:center;position:relative}.lane:before{content:"";position:absolute;height:100%;border-left:2px dashed white}.bus{z-index:1;background:#155e75;color:white;padding:6px;border-radius:8px;width:48px}.error{color:#a12424;white-space:pre-wrap}.eta{font-size:24px;font-weight:800;color:#087f5b}.past{opacity:.45}footer{text-align:center;font-size:12px;color:#526879;padding:15px} [hidden]{display:none!important} .results button{width:100%;text-align:left;margin-bottom:5px}
 button:disabled{opacity:.55;cursor:wait}#settings button{margin:4px 5px 4px 0}#settingsStatus{overflow-wrap:anywhere}.lane{flex-wrap:wrap}.bus{flex-shrink:0}
 /* Compact mobile layout — Build 07 */
@@ -149,6 +149,19 @@ nav{gap:4px}nav button{padding:8px 2px;font-size:13px}
 .introSplash[hidden]{display:none!important}
 @media(max-height:560px){.introInner{min-height:0}.introBrand{margin:18px 0}.introRoad{max-height:110px;margin:0 0 10px}}
 @media(prefers-reduced-motion:reduce){.introRoad .introAnimatedBus{animation:none}}
+
+/* V1.3 cross-browser utilities */
+#weatherStrip{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:2px 0 10px;border-radius:9px;background:var(--panel);padding:8px 11px;border:1px solid var(--border)}
+#weatherStrip .weatherLabel{font-weight:700;font-size:12px}
+#weatherNow{color:var(--muted);font-size:12px;text-align:right}
+.leaveAdvice{font-size:13px;font-weight:750;color:var(--green);background:var(--current);padding:7px;border-radius:8px}
+.externalMaps{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.mapAppLink{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;color:var(--accent);font-size:12px;font-weight:700;text-decoration:none}
+.mapAppLink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#recentTrips{display:grid;gap:5px}
+.recentTripRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+.recentTripRow button:first-child{text-align:left;overflow-wrap:anywhere}
+.recentTripRow button:last-child{font-size:12px}
 </style></head><body>
 <div id="introSplash" class="introSplash" role="region" aria-label="JI BUS 인트로">
  <div class="introInner">
@@ -207,9 +220,10 @@ nav{gap:4px}nav button{padding:8px 2px;font-size:13px}
 </script>
 <main>
 <div class="topbar">
-<header><div><h1>JI BUS</h1><small>V1.2 · 청주 실시간 버스 · Build 02</small></div><button id="refresh" type="button" aria-label="실시간 정보 갱신"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5 9a7 7 0 0 1 12-4l3 7M4 12l3 7a7 7 0 0 0 12-4"/></svg>갱신</button></header>
+<header><div><h1>JI BUS</h1><small>V1.3 · 청주 실시간 버스 · Build 01</small></div><button id="refresh" type="button" aria-label="실시간 정보 갱신"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5 9a7 7 0 0 1 12-4l3 7M4 12l3 7a7 7 0 0 0 12-4"/></svg>갱신</button></header>
 <nav aria-label="주 메뉴"><button type="button" data-tab="search">버스 검색</button><button type="button" data-tab="favorites">즐겨찾기</button><button type="button" data-tab="settings">설정</button></nav>
 </div>
+<div id="weatherStrip" role="status" aria-live="polite"><span class="weatherLabel">청주시 현재 날씨</span><span id="weatherNow">조회 준비 중</span></div>
 <section id="searchPanel">
 <h2>버스 검색</h2>
 <div class="searchModeTabs" role="group" aria-label="검색 방식">
@@ -232,6 +246,7 @@ nav{gap:4px}nav button{padding:8px 2px;font-size:13px}
 <p id="otherSelection" class="muted" role="status" aria-live="polite">출발·도착 정류장을 선택하세요.</p>
 </div>
 </section>
+<section id="recentPanel"><h2>최근 검색</h2><div id="recentTrips"></div><p class="muted">최근 5개 구간이 이 기기에만 저장됩니다.</p></section>
 <section id="favoritesPanel" hidden><h2>즐겨찾기</h2><p class="muted">저장된 구간을 선택하면 해당 경로의 버스를 검색합니다.</p><div id="favoriteList"></div></section>
 <section id="settings" hidden><h2>API 인증키 설정</h2>
 <label for="key">공공데이터 일반 인증키 (Decoding)</label>
@@ -243,9 +258,9 @@ nav{gap:4px}nav button{padding:8px 2px;font-size:13px}
 <section id="heading"></section><p id="status" role="status" aria-live="polite"></p><div id="cards"></div>
 <footer>JI BUS V1.2 · 디자인 및 개발 김정인</footer>
 </main><script>
-/* V1.2 Build 02: check the deployed version on every page opening. */
+/* V1.3 Build 01: check the deployed version on every page opening. */
 (async function boot(){
-  const current='20261121.1202';
+  const current='20261121.1301';
   const versionUrl=new URL('./version.json',location.href);
   versionUrl.searchParams.set('check',String(Date.now()));
   let deployed=current;
