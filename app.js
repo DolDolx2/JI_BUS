@@ -777,13 +777,24 @@ function smartCandidates(routes,nearby,destinations){
  }
  return [...map.values()].sort((a,b)=>a.walkMinutes-b.walkMinutes||a.stopsCount-b.stopsCount).slice(0,30)
 }
+function smartArrivalsFor(rows,route){
+ const arrivals=arrivalsFor(rows,route.id);
+ if(!route.direction)return arrivals;
+ // If route and arrival specify directions, never attribute the opposite
+ // direction's ETA to a recommended boarding stop.
+ return arrivals.filter(x=>{
+  const direction=x.updowncd??x.updowncode;
+  return direction!=null&&String(direction)===route.direction
+ })
+}
 function rankSmartCandidates(candidates,arrivalMap){
  const evaluated=candidates.map(c=>{
   const rows=arrivalMap.get(c.board.id)||[];
-  const times=arrivalsFor(rows,c.route.id).map(x=>Number(x.arrtime)).filter(Number.isFinite);
+  const allArrivals=arrivalsFor(rows,c.route.id);
+  const times=smartArrivalsFor(rows,c.route).map(x=>Number(x.arrtime)).filter(Number.isFinite);
   const usable=times.map(seconds=>({seconds,score:smartScore(c.walkMinutes,seconds,c.stopsCount)}))
    .find(x=>x.score!==null);
-  return {...c,arrivalSeconds:usable?.seconds??null,estimate:usable?.score??null,arrivalKnown:times.length>0};
+  return {...c,arrivalSeconds:usable?.seconds??null,estimate:usable?.score??null,arrivalKnown:allArrivals.length>0};
  });
  return evaluated.sort((a,b)=>{
   const va=a.estimate??Infinity,vb=b.estimate??Infinity;
@@ -817,6 +828,7 @@ function showSmartResults(ranked,partial){
   const button=el('button','이 경로 보기','primary');button.type='button';
   button.onclick=()=>{
    setTrip(item.board,item.exit);
+   cfg.lastTrip={from:item.board,to:item.exit};save();
    fromControl.input.value=item.board.name;
    toControl.input.value=item.exit.name;
    // Use the matched direction only, not the other side of this route.
