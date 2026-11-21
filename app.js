@@ -271,7 +271,7 @@ function updateTimeline(t,r,v,error='',role=''){
 /* V1.3 Build 03: semantic, text-based boarding/alighting badges. */
 function makeStopBadge(kind){
  const labels={board:'탑승',exit:'하차',transfer:'환승'};
- if(!Object.hasOwn(labels,kind))throw Error('Unknown stop role');
+ if(!Object.prototype.hasOwnProperty.call(labels,kind))throw Error('Unknown stop role');
  const badge=el('span',labels[kind],'stopBadge stopBadge-'+kind);
  return badge
 }
