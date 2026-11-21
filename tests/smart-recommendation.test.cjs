@@ -34,7 +34,8 @@ assert.equal(found[1].walkMinutes,4);
 assert.equal(smartCandidates([r1],near,[stop('wrong','다른 목적지')]).length,0);
 assert.equal(smartCandidates([{...r1,stops:[stop('z','목적지'),stop('a','출발 A')]}],near,[stop('z','목적지')]).length,0);
 assert.equal(smartScore(5,120,3),null); // cannot walk 5m to catch bus in 2m
-assert.equal(smartScore(5,360,3),12);
+assert.equal(smartScore(5,360,3),null);
+assert.equal(smartScore(5,480,3),14);
 assert.equal(smartScore(5,-1,3),null);
 assert.equal(smartScore(5,NaN,3),null);
 const arrivals=new Map([
@@ -49,4 +50,4 @@ assert.equal(ranked[1].estimate,17);
 const noLive=rankSmartCandidates(found,new Map());
 assert.equal(noLive[0].estimate,null);
 assert.equal(noLive[0].route.id,'R2'); // nearest stop first if no live data
-console.log('JI BUS V1.2 smart recommendation tests PASS (16 assertions)');
+console.log('JI BUS V1.2 smart recommendation tests PASS (17 assertions)');
