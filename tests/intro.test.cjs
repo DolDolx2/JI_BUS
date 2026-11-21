@@ -1,4 +1,4 @@
-// JI BUS V1.2 Build 03 — splash entry and animation smoke test.
+// JI BUS V1.2 Build 04 — splash entry and animation smoke test.
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -8,28 +8,26 @@ const scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]);
 assert.equal(scripts.length,2);
 assert.match(html,/id="introSplash"/);
 assert.match(html,/id="introEnter"/);
-assert.match(html,/청주시 시내버스 정보 전용/);
+assert.match(html,/청주시 시내버스 실시간 안내/);
 assert.match(html,/<text[^>]+>청주시<\/text>/);
-assert.match(html,/repeatCount="indefinite"/);
-assert.match(html,/keyPoints="0;1;0"/);
-assert.match(html,/keyTimes="0;0\.5;1"/);
-assert.match(html,/V1\.3 · 청주 실시간 버스 · Build 03/);
-assert.match(scripts[1],/const current='20261121\.1303'/);
+assert.match(html,/class="introStaticBus" transform="translate\(213 192\)"/);
+assert.doesNotMatch(html,/<animateMotion\b/);
+assert.match(html,/3초 후 자동으로 이동합니다/);
+assert.match(html,/V1\.3 · 청주 실시간 버스 · Build 04/);
+assert.match(scripts[1],/const current='20261121\.1304'/);
 const init=new Function('document','window','setTimeout','clearTimeout',scripts[0]);
 function fixture(reduced=false){
  const button={handlers:{},addEventListener(kind,fn){this.handlers[kind]=fn}};
- const bus={setAttribute(name,value){this[name]=value}};
- const motion={removed:false,remove(){this.removed=true}};
  const splash={hidden:false,removed:false,attributes:{},
   setAttribute(key,value){this.attributes[key]=value},
   remove(){this.removed=true},
-  querySelector(query){return query==='animateMotion'?motion:query==='.introAnimatedBus'?bus:null}};
+  querySelector(){return null}};
  const timers=[],cancelled=[];
  const document={getElementById:id=>id==='introSplash'?splash:button};
  init(document,{matchMedia:()=>({matches:reduced})},
   (fn,delay)=>{timers.push({fn,delay});return timers.length},
   id=>cancelled.push(id));
- return {button,splash,timers,cancelled,motion,bus}
+ return {button,splash,timers,cancelled}
 }
 const tapped=fixture();
 assert.equal(tapped.timers[0].delay,3000);
@@ -43,6 +41,6 @@ const automatic=fixture();
 automatic.timers[0].fn();
 assert.equal(automatic.splash.removed,true);
 const accessible=fixture(true);
-assert.equal(accessible.motion.removed,true);
-assert.equal(accessible.bus.transform,'translate(213 192)');
-console.log('JI BUS V1.2 Build 03 splash smoke tests PASS (18 assertions)');
+assert.equal(accessible.timers[0].delay,3000);
+assert.equal(accessible.splash.removed,false);
+console.log('JI BUS V1.2 Build 04 static splash smoke tests PASS');
