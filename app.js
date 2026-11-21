@@ -288,6 +288,9 @@ function renderStopFlow(host,board,exit,via){
  host.replaceChildren(flow)
 }
 function renderTimelineStopLabel(label,name,role){
+ const key=role+'|'+name;
+ if(label.dataset.stopLabelKey===key)return;
+ label.dataset.stopLabelKey=key;
  label.replaceChildren();
  if(role==='board'||role==='exit'||role==='transfer'){
   label.append(makeStopBadge(role),el('span',name,'timelineStopName'))
