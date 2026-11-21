@@ -32,6 +32,36 @@ async function api(service,method,params={}){
 }
 const node=x=>({id:String(x.nodeid??''),name:String(x.nodenm??''),no:String(x.nodeno??''),lat:Number(x.gpslati??NaN),lon:Number(x.gpslong??NaN)});
 const name=x=>x.name+(x.no?' ('+x.no+')':'');
+
+/* P6: unified stop lookup. Existing route stops are used as local fuzzy index. */
+const normStop=s=>String(s||'').normalize('NFKC').toLocaleLowerCase('ko').replace(/[\\s·.,()\-_/]/g,'');
+function editDistance(a,b,limit=2){if(Math.abs(a.length-b.length)>limit)return limit+1;let prev=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){let next=[i];for(let j=1;j<=b.length;j++)next[j]=Math.min(prev[j]+1,next[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=next;if(Math.min(...prev)>limit)return limit+1}return prev[b.length]}
+function searchRank(s,q){
+ const n=normStop(s.name),x=normStop(q);if(!x)return 999;
+ if(n===x)return 0;if(n.startsWith(x))return 1;if(n.includes(x))return 2;
+ if(x.length>=3&&editDistance(n,x,2)<=2)return 3;
+ return 999;
+}
+function localStops(){let m=new Map();for(const r of cfg.routes)for(const s of r.stops)m.set(s.id,s);for(const s of Object.values(cfg.stops))if(s?.id)m.set(s.id,s);for(const s of cfg.favorites)if(s?.id)m.set(s.id,s);return [...m.values()]}
+async function findStops(query){
+ const q=query.trim();if(!q)return [];
+ const m=new Map();for(const s of localStops())if(searchRank(s,q)<999)m.set(s.id,s);
+ try{for(const x of await api('stop','getSttnNoList',{nodeNm:q})){let s=node(x);if(s.id)m.set(s.id,s)}}catch(e){if(!m.size)throw e;recordError(e,'정류장 검색')}
+ return [...m.values()].filter(s=>searchRank(s,q)<999).sort((a,b)=>searchRank(a,q)-searchRank(b,q)||a.name.localeCompare(b.name,'ko')||a.no.localeCompare(b.no)).slice(0,50)
+}
+function groupStops(items){
+ const groups=new Map();for(const s of items){const k=normStop(s.name);if(!groups.has(k))groups.set(k,{name:s.name,stops:[]});groups.get(k).stops.push(s)}
+ return [...groups.values()]
+}
+function stopSearchControl(container,onChoose){
+ const input=el('input'),results=el('div',undefined,'results');input.placeholder='정류장 이름 또는 일부 입력';input.setAttribute('aria-label','정류장 이름 검색');container.append(input,results);
+ let timer=0,serial=0;
+ input.addEventListener('input',()=>{clearTimeout(timer);const token=++serial;results.replaceChildren();const q=input.value.trim();if(!q)return;timer=setTimeout(async()=>{try{const groups=groupStops(await findStops(q));if(token!==serial)return;
+ for(const g of groups){const b=el('button',g.name+(g.stops.length>1?' · '+g.stops.length+'개 위치':''));b.type='button';b.onclick=()=>{onChoose(g.stops);input.value=g.name;results.replaceChildren()};results.append(b)}if(!groups.length)results.append(el('p','일치하는 정류장 없음 · 일부 명칭으로 다시 검색하세요','muted'))
+ }catch(e){if(token===serial)results.append(el('p','검색 실패: '+e.message,'error'))}},300)});
+ return {input,results};
+}
+
 function showSaved(){
  const labels={board:'출근 승차',exit:'출근 하차',alt:'출근 대체',home:'귀가 하차'};
  $('saved').replaceChildren(...Object.entries(labels).map(([k,v])=>el('p',v+' · '+(cfg.stops[k]?name(cfg.stops[k]):'미설정'))));
@@ -236,7 +266,10 @@ $('saveKey').onclick=async()=>{
  }catch(e){keyMessage('처리 실패 또는 연결 미확인: '+(['TimeoutError','AbortError'].includes(e.name)?'응답 시간 초과':e.message)+'. 활용 승인 및 인증키를 확인하세요.',true)}
  finally{btn.disabled=false;btn.textContent='인증키 저장 및 확인'}
 };
-$('search').onclick=async()=>{let q=$('query').value.trim();if(!q){status('정류장 이름을 입력하세요.',true);return;}try{status('정류장 검색 중…');let items=await api('stop','getSttnNoList',{nodeNm:q});$('searchResults').replaceChildren();for(const x of items){let s=node(x);if(!s.id)continue;let b=el('button',name(s));b.onclick=()=>{let t=$('target').value;if(t==='favorite'){if(!cfg.favorites.some(x=>x.id===s.id))cfg.favorites.push(s)}else{cfg.stops[t]=s;cfg.routes=[];delete cfg.routesBuiltAt;cfg.last='';$('routeReport').replaceChildren()}save();showSaved();status('정류장 저장 완료 · '+name(s))};$('searchResults').append(b)}status(items.length+'개 검색 결과')}catch(e){status(e.message,true)}};
+$('search').onclick=async()=>{let q=$('query').value.trim();if(!q){status('정류장 이름을 입력하세요.',true);return}try{status('정류장 검색 중…');let groups=groupStops(await findStops(q));$('searchResults').replaceChildren();
+ for(const g of groups){const b=el('button',g.name+(g.stops.length>1?' · '+g.stops.length+'개 후보':''));b.onclick=()=>{let t=$('target').value;if(t==='favorite'){for(const s of g.stops)if(!cfg.favorites.some(x=>x.id===s.id))cfg.favorites.push(s)}else{cfg.stops[t]=g.stops[0];cfg.routes=[];delete cfg.routesBuiltAt;cfg.last='';$('routeReport').replaceChildren()}save();showSaved();status('정류장 저장 · '+g.name+(g.stops.length>1?' (방향은 노선 구성에서 자동 판단 예정)':''))};$('searchResults').append(b)}
+ status(groups.length+'개 정류장 이름 검색 결과')}catch(e){status(e.message,true)}
+};
 function routeReport(routes,notes=[]){
  const out=el('div',undefined,'routeResult');
  const work=routes.filter(r=>[cfg.stops.exit?.id,cfg.stops.alt?.id].filter(Boolean).some(b=>pairs(r.stops,cfg.stops.board?.id,b).length));
