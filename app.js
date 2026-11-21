@@ -49,6 +49,16 @@ async function findStops(query){
  try{for(const x of await api('stop','getSttnNoList',{nodeNm:q})){let s=node(x);if(s.id)m.set(s.id,s)}}catch(e){if(!m.size)throw e;recordError(e,'정류장 검색')}
  return [...m.values()].filter(s=>searchRank(s,q)<999).sort((a,b)=>searchRank(a,q)-searchRank(b,q)||a.name.localeCompare(b.name,'ko')||a.no.localeCompare(b.no)).slice(0,50)
 }
+async function expandDirectionalStops(s){
+ const map=new Map([[s.id,s]]);
+ try{for(const x of await findStops(s.name))if(selectedMatches(x,s))map.set(x.id,x)}catch(e){recordError(e,'방향 후보')}
+ if(Number.isFinite(s.lat)&&Number.isFinite(s.lon)&&s.lat!==0&&s.lon!==0){
+ try{const nearby=await api('stop','getCrdntPrxmtSttnList',{gpsLati:String(s.lat),gpsLong:String(s.lon)});
+ for(const x of nearby){const stop=node(x);if(stop.id&&selectedMatches(stop,s))map.set(stop.id,stop)}
+ }catch(e){recordError(e,'주변 정류소 후보')}
+ }
+ return [...map.values()]
+}
 function groupStops(items){
  const groups=new Map();for(const s of items){const k=normStop(s.name);if(!groups.has(k))groups.set(k,{name:s.name,stops:[]});groups.get(k).stops.push(s)}
  return [...groups.values()]
@@ -345,7 +355,7 @@ $('build').onclick=async()=>{
  let ids=new Map();
  for(const selected of [cfg.stops.board,cfg.stops.home]){
  status('양방향 정류소 후보 조회 · '+selected.name);
- let candidates=[selected];try{candidates=(await findStops(selected.name)).filter(s=>selectedMatches(s,selected));if(!candidates.length)candidates=[selected]}catch(e){notes.push(selected.name+' 후보 조회 오류 · '+e.message)}
+ let candidates=[selected];try{candidates=await expandDirectionalStops(selected);if(!candidates.length)candidates=[selected]}catch(e){notes.push(selected.name+' 후보 조회 오류 · '+e.message)}
  for(const s of candidates){try{let items=await api('stop','getSttnThrghRouteList',{nodeid:s.id});for(const x of items)if(x.routeid)ids.set(String(x.routeid),String(x.routeno))}catch(e){notes.push(s.name+' · '+e.message)}}
  }
  for(const [id,no] of ids){status('노선 구성 중 · '+no);try{let stops=(await api('route','getRouteAcctoThrghSttnList',{routeId:id})).map(x=>({...node(x),order:Number(x.nodeord)})).filter(x=>x.id&&Number.isFinite(x.order)).sort((a,b)=>a.order-b.order);if(stops.length)routes.push({id,no,stops});else notes.push(no+' · 경유 정류장 0건')}catch(e){notes.push(no+' · '+e.message)}}
@@ -363,7 +373,9 @@ $('findOther').onclick=async()=>{
  if(!otherTrip.from||!otherTrip.to){$('otherSelection').textContent='출발·도착 정류장을 모두 선택하세요';return}
  const button=$('findOther');button.disabled=true;otherTrip.ready=false;revision++;resetView();$('otherSelection').textContent='노선 탐색 중…';
  try{
-  const ids=new Map(), candidates=[...(otherTrip.fromCandidates||[otherTrip.from]),...(otherTrip.toCandidates||[otherTrip.to])];
+  const ids=new Map(),candidatesMap=new Map();
+  for(const s of [otherTrip.from,otherTrip.to])for(const x of await expandDirectionalStops(s))candidatesMap.set(x.id,x);
+  const candidates=[...candidatesMap.values()];
   for(const s of candidates){const items=await api('stop','getSttnThrghRouteList',{nodeid:s.id});for(const x of items)if(x.routeid)ids.set(String(x.routeid),String(x.routeno))}
   const results=[];
   for(const [id,no] of ids){let r=cfg.routes.find(x=>x.id===id);if(!r)r=otherTrip.routes.find(x=>x.id===id);
