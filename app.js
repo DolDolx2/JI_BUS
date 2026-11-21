@@ -745,6 +745,15 @@ if(validStop(cfg.lastTrip?.from)&&validStop(cfg.lastTrip?.to)){
 /* V1.2 smart recommendation: GPS + destination based direct-route candidates.
    Estimates are explicitly heuristic, not a pedestrian route or travel ETA. */
 const smartState={to:null,toCandidates:[],results:[],request:0};
+const smartRouteCache=new Map();
+async function smartRouteVariants(id,no){
+ const cache=smartRouteCache.get(id);
+ if(cache&&Date.now()-cache.time<6*60*60*1000)return cache.promise;
+ const promise=api('route','getRouteAcctoThrghSttnList',{routeId:id})
+  .then(raw=>routeVariants(id,no,raw));
+ smartRouteCache.set(id,{time:Date.now(),promise});
+ try{return await promise}catch(error){smartRouteCache.delete(id);throw error}
+}
 function smartScore(walkMinutes,arrivalSeconds,stopsCount){
  if(!Number.isFinite(arrivalSeconds)||arrivalSeconds<0)return null;
  const arrivalMinutes=Math.ceil(arrivalSeconds/60);
@@ -872,15 +881,15 @@ $('smartRecommend').onclick=()=>{
     for(const x of items)if(x.routeid)routeIds.set(String(x.routeid),String(x.routeno||'노선번호 없음'))
    }
    // Partial results must be labelled: cap route downloads to avoid API exhaustion.
-   const limited=[...routeIds].slice(0,30),variants=[];
+   const limited=[...routeIds].slice(0,20),variants=[];
    for(let i=0;i<limited.length;i+=3){
-    const batch=await Promise.allSettled(limited.slice(i,i+3).map(async([id,no])=>(await nearbyRouteDetails(id,no)).variants));
+    const batch=await Promise.allSettled(limited.slice(i,i+3).map(async([id,no])=>smartRouteVariants(id,no)));
     if(token!==smartState.request)return;
     for(const result of batch)if(result.status==='fulfilled')variants.push(...result.value);
    }
    const candidates=smartCandidates(variants,nearby,destinations);
    if(!candidates.length){
-    smartStatus('직행 경로를 찾지 못했습니다. 반경 800m·최대 30개 목적지 노선을 확인했습니다. 환승 검색은 직접 검색에서 이용하세요.',true);
+    smartStatus('직행 경로를 찾지 못했습니다. 반경 800m·최대 20개 목적지 노선을 확인했습니다. 환승 검색은 직접 검색에서 이용하세요.',true);
     return
    }
    smartStatus('실시간 도착정보 조회 중…');
