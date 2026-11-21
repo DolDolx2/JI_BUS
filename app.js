@@ -243,8 +243,7 @@ function layoutTimeline(t,rebuild=false){
   let role=i===r.i?'board':i===r.j?'exit':primary&&i===primary.i?'current':primary&&i<primary.i?'passed':'future';
   if((t.role==='first'&&i===r.j)||(t.role==='second'&&i===r.i))role='transfer';
   cell.row.dataset.state=role;cell.label.className='stopname '+role;
-  let suffix=role==='transfer'?' · 환승':i===r.i?' · 승차':i===r.j?' · 하차':role==='current'?' · 현재':'';
-  const text=r.stops[i].name+suffix;if(cell.label.textContent!==text)cell.label.textContent=text
+  renderTimelineStopLabel(cell.label,r.stops[i].name,role)
  }
  let info=primary?'최근 확인 위치 · '+r.stops[primary.i].name+' · '+(r.i-primary.i)+'정류장 전':'탑승 방향 차량 위치 미확인 · 다른 방향 차량은 제외';
  if(primary&&primary.i<start)info+=' (표시 범위 밖)';
@@ -268,6 +267,33 @@ function layoutTimeline(t,rebuild=false){
 }
 function updateTimeline(t,r,v,error='',role=''){
  t.r=r;t.role=role;t.error=error;if(!error){t.vehicles=v;t.stamp=Date.now()}else if(!t.stamp&&v.length){t.vehicles=v}layoutTimeline(t)
+}
+/* V1.3 Build 03: semantic, text-based boarding/alighting badges. */
+function makeStopBadge(kind){
+ const labels={board:'탑승',exit:'하차',transfer:'환승'};
+ if(!Object.hasOwn(labels,kind))throw Error('Unknown stop role');
+ const badge=el('span',labels[kind],'stopBadge stopBadge-'+kind);
+ return badge
+}
+function makeStopPoint(kind,name){
+ const item=el('span',undefined,'stopFlowPoint');
+ item.append(makeStopBadge(kind),el('strong',name,'stopFlowName'));
+ return item
+}
+function renderStopFlow(host,board,exit,via){
+ const flow=el('div',undefined,'stopFlow');
+ flow.append(makeStopPoint('board',board));
+ if(via){flow.append(el('span','›','stopFlowArrow'),makeStopPoint('transfer',via))}
+ flow.append(el('span','›','stopFlowArrow'),makeStopPoint('exit',exit));
+ host.replaceChildren(flow)
+}
+function renderTimelineStopLabel(label,name,role){
+ label.replaceChildren();
+ if(role==='board'||role==='exit'||role==='transfer'){
+  label.append(makeStopBadge(role),el('span',name,'timelineStopName'))
+ }else{
+  label.textContent=name+(role==='current'?' · 현재':'')
+ }
 }
 function ensureCard(key,title,transfer=false){
  let o=liveCards.get(key);if(o)return o;
@@ -303,7 +329,7 @@ async function getRouteInfo(id){
 }
 function directCard(r,a,location,first,at,info){
  const key='direct:'+routeKey(r),o=ensureCard(key,r.no),av=arrivalsFor(a,r.id),v=av[0];
- textTo(o.path,r.stops[r.i].name+' → '+r.stops[r.j].name);
+ renderStopFlow(o.path,r.stops[r.i].name,r.stops[r.j].name);
  textTo(o.meta,v?'남은 정류장 '+(v.arrprevstationcnt??'미제공')+' · 다음 차량 '+(av[1]?Math.ceil(Number(av[1].arrtime)/60)+'분 후':'정보 없음'):'현재 도착 예정 차량 없음');textTo(o.schedule,v?'':operatingText(info));
  textTo(o.flag,(directionLabel(r)?directionLabel(r)+' · ':'')+(first&&v?'가장 먼저 도착 · ':'')+'직행 노선');
  setEta(o.eta,v?.arrtime,at);
@@ -351,13 +377,13 @@ async function showTransfers(origin,arrivalRows,rev,at){
  const keys=[];
  for(const p of top){
   const key='transfer:'+p.key,o=ensureCard(key,p.first.no+' → '+p.second.no,true),second=ats.get(p.stop.id),first=firstAts.get(p.first.stops[p.first.i].id);
-  keys.push(key);textTo(o.path,p.first.stops[p.first.i].name+' → '+p.stop.name+' → '+p.second.stops[p.second.j].name);
+  keys.push(key);renderStopFlow(o.path,p.first.stops[p.first.i].name,p.second.stops[p.second.j].name,p.stop.name);
   textTo(o.meta,'환승 1회 · '+p.count+'개 구간 · 동일 정류장 환승');
   textTo(o.flag,'환승 성립 및 최종 도착시간 미확정');
   setEta(o.eta,arrivalsFor(first.rows,p.first.id)[0]?.arrtime,first.at);
   textTo(o.summary,'두 차량 위치 · 현재 기준');
   if(!o.legs.length){for(let i=0;i<2;i++){const d=el('details'),s=el('summary'),v=el('span',undefined,'legEta'),t=makeTimeline(i?p.second:p.first);d.append(s,v,t.wrap);o.details.append(d);o.legs.push({d,s,v,t})}}
-  for(const [i,r] of [p.first,p.second].entries()){const leg=o.legs[i],l=loc.get(r.id);textTo(leg.s,(i+1)+'구간 · '+r.no+'번'+(directionLabel(r)?' · '+directionLabel(r):'')+' · '+r.stops[r.i].name+' 승차');
+  for(const [i,r] of [p.first,p.second].entries()){const leg=o.legs[i],l=loc.get(r.id);textTo(leg.s,(i+1)+'구간 · '+r.no+'번'+(directionLabel(r)?' · '+directionLabel(r):'')+' · '+r.stops[r.i].name+' 탑승');
    setEta(leg.v,i?arrivalsFor(second.rows,r.id)[0]?.arrtime:arrivalsFor(first.rows,r.id)[0]?.arrtime,i?second.at:first.at);
    if(i&&second.error){leg.v.textContent='환승 도착정보 조회 실패';delete leg.v.dataset.eta}
    updateTimeline(leg.t,r,l.v,l.e||'',i?'second':'first')
@@ -882,7 +908,7 @@ function showSmartResults(ranked,partial){
   const badge=el('span',index===0?'추천 1 · 우선 확인':'추천 '+(index+1),'smartRouteBadge');card.append(badge);
   const head=el('div',undefined,'line'),title=el('strong',(index+1)+'순위 · '+item.route.no+'번'),walk=el('span','약 '+Math.round(item.board.distance)+'m 도보','muted');
   head.append(title,walk);
-  card.append(head,el('p',item.board.name+' 승차 → '+item.exit.name+' 하차','smartPath'));
+  const smartPath=el('div',undefined,'smartPath');renderStopFlow(smartPath,item.board.name,item.exit.name);card.append(head,smartPath);
   card.append(el('p',(directionLabel(item.route)||'운행방향 미표시')+' · '+item.stopsCount+'정류장 이동','muted'));
   const arrival=item.estimate!==null?'도착예정 약 '+Math.ceil(item.arrivalSeconds/60)+'분 후 · 도보 약 '+item.walkMinutes+'분 · 참고 합계 약 '+item.estimate+'분':
    item.arrivalKnown?'도보로 승차 가능한 도착 차량 미확인':'실시간 도착정보 미확인';
