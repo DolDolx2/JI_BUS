@@ -8,6 +8,7 @@ if(!Array.isArray(cfg.routes))cfg.routes=[];
 if(!Array.isArray(cfg.favorites))cfg.favorites=[];
 if(!Array.isArray(cfg.tripFavorites))cfg.tripFavorites=[];
 let tab='search',busy=false,revision=0;
+if(!Array.isArray(cfg.recentTrips))cfg.recentTrips=[];
 let retryCount=0,retryTimer=null,authBlocked=false;
 const logErrors=[];
 const save=()=>localStorage.setItem(store,JSON.stringify(cfg));
@@ -181,6 +182,7 @@ function switchTab(next){
  $('settings').hidden=next!=='settings';
  $('searchPanel').hidden=next!=='search';
  $('favoritesPanel').hidden=next!=='favorites';
+ $('recentPanel').hidden=next!=='search';
  const showManual=next==='search'&&searchMode==='manual';
  $('heading').hidden=!showManual;
  $('status').hidden=!showManual;
@@ -454,6 +456,35 @@ function setTrip(from,to,alt){
  $('otherSelection').textContent=tripSummary();
  $('saveTrip').disabled=!(validStop(from)&&validStop(to));
  revision++;resetView();arrangeCards([]);
+}
+
+/* V1.3: recent-trip history; never store precise location or API responses. */
+function rememberTrip(from,to){
+ if(!validStop(from)||!validStop(to))return;
+ const cleaned=(cfg.recentTrips||[]).filter(x=>validStop(x?.from)&&validStop(x?.to)&&!(x.from.id===from.id&&x.to.id===to.id));
+ cfg.recentTrips=[{from:{id:from.id,name:from.name,no:from.no||'',lat:from.lat,lon:from.lon},to:{id:to.id,name:to.name,no:to.no||'',lat:to.lat,lon:to.lon},at:Date.now()},...cleaned].slice(0,5);
+ cfg.lastTrip={from,to};save();
+ renderRecentTrips()
+}
+function renderRecentTrips(){
+ const host=$('recentTrips');if(!host)return;
+ host.replaceChildren();
+ const entries=cfg.recentTrips.filter(x=>validStop(x?.from)&&validStop(x?.to)).slice(0,5);
+ if(!entries.length){host.append(el('p','최근 검색 기록이 없습니다.','muted'));return}
+ for(const trip of entries){
+  const row=el('div',undefined,'recentTripRow');
+  const open=el('button',trip.from.name+' → '+trip.to.name);
+  open.type='button';open.onclick=()=>{
+   setTrip(trip.from,trip.to);
+   fromControl.input.value=trip.from.name;toControl.input.value=trip.to.name;
+   setSearchMode('manual');switchTab('search');searchTrip()
+  };
+  const remove=el('button','삭제');remove.type='button';remove.setAttribute('aria-label',trip.from.name+' → '+trip.to.name+' 기록 삭제');
+  remove.onclick=()=>{
+   cfg.recentTrips=cfg.recentTrips.filter(x=>!(x.from.id===trip.from.id&&x.to.id===trip.to.id));save();renderRecentTrips()
+  };
+  row.append(open,remove);host.append(row)
+ }
 }
 function renderFavorites(){
  const host=$('favoriteList');host.replaceChildren();
@@ -729,7 +760,7 @@ async function searchTrip(){
    routes.push(...variants.filter(r=>r.stops.length))
   }
   otherTrip.routes=routes;otherTrip.ready=true;
-  cfg.lastTrip={from:otherTrip.from,to:otherTrip.to};save();
+  rememberTrip(otherTrip.from,otherTrip.to);
   $('otherSelection').textContent='노선 '+routes.length+'개 분석 완료 · 실시간 조회 중';
   resetView();refresh()
  }catch(e){if(token===revision){$('otherSelection').textContent='경로 검색 실패: '+e.message;recordError(e,'버스 검색')}}
@@ -801,6 +832,35 @@ function rankSmartCandidates(candidates,arrivalMap){
   return va-vb||a.walkMinutes-b.walkMinutes||a.stopsCount-b.stopsCount||a.route.no.localeCompare(b.route.no,'ko',{numeric:true})
  })
 }
+
+/* V1.3: advisory leave time. Arrival time and walk time are estimates. */
+function departureAdvice(etaSeconds,walkMinutes,bufferMinutes=2){
+ if(!Number.isFinite(etaSeconds)||etaSeconds<0||!Number.isFinite(walkMinutes)||walkMinutes<0)return null;
+ const etaMinutes=Math.ceil(etaSeconds/60),remaining=etaMinutes-walkMinutes-bufferMinutes;
+ return {remaining,etaMinutes,walkMinutes,bufferMinutes,
+  label:remaining>0?'약 '+remaining+'분 이내 출발 권장':remaining===0?'지금 출발 권장':'이 차량은 승차가 어려울 수 있음'};
+}
+function stopHasMapCoordinates(stop){
+ return Number.isFinite(Number(stop?.lat))&&Number.isFinite(Number(stop?.lon))&&
+  Number(stop.lat)>=33&&Number(stop.lat)<=39&&Number(stop.lon)>=124&&Number(stop.lon)<=132
+}
+function nativeMapUrls(stop){
+ if(!stopHasMapCoordinates(stop))return null;
+ const lat=Number(stop.lat),lon=Number(stop.lon),title=encodeURIComponent(stop.name||'버스 정류장');
+ const naver='nmap://route/walk?dlat='+lat+'&dlng='+lon+'&dname='+title+'&appname='+encodeURIComponent('https://doldolx2.github.io/JI_BUS/');
+ const apple='maps://?daddr='+lat+','+lon+'&dirflg=w';
+ return {naver,apple}
+}
+function attachMapLinks(host,stop){
+ const urls=nativeMapUrls(stop);
+ if(!urls){host.append(el('span','정류장 좌표가 없어 지도 앱으로 연결할 수 없습니다.','muted'));return}
+ const wrap=el('div',undefined,'externalMaps');
+ for(const [title,href] of [['네이버지도 앱',urls.naver],['Apple 지도 앱',urls.apple]]){
+  const a=el('a',title);a.href=href;a.className='mapAppLink';a.rel='noopener';
+  wrap.append(a)
+ }
+ host.append(wrap,el('p','설치된 지도 앱만 실행할 수 있습니다. 브라우저별로 실행 확인 창이나 미지원 안내가 나타날 수 있습니다.','muted'))
+}
 function smartStatus(message,failed=false){
  const host=$('smartStatus');host.textContent=message;host.className=failed?'error':'muted'
 }
@@ -825,10 +885,13 @@ function showSmartResults(ranked,partial){
   const arrival=item.estimate!==null?'도착예정 약 '+Math.ceil(item.arrivalSeconds/60)+'분 후 · 도보 약 '+item.walkMinutes+'분 · 참고 합계 약 '+item.estimate+'분':
    item.arrivalKnown?'도보로 승차 가능한 도착 차량 미확인':'실시간 도착정보 미확인';
   card.append(el('p',arrival,'smartTiming'));
+  const advice=departureAdvice(item.arrivalSeconds,item.walkMinutes);
+  if(advice)card.append(el('p',advice.label,'leaveAdvice'));
+  attachMapLinks(card,item.board);
   const button=el('button','이 경로 보기','primary');button.type='button';
   button.onclick=()=>{
    setTrip(item.board,item.exit);
-   cfg.lastTrip={from:item.board,to:item.exit};save();
+   rememberTrip(item.board,item.exit);
    fromControl.input.value=item.board.name;
    toControl.input.value=item.exit.name;
    // Use the matched direction only, not the other side of this route.
@@ -926,6 +989,37 @@ $('smartRecommend').onclick=()=>{
  },{enableHighAccuracy:true,timeout:12000,maximumAge:60000})
 };
 
+
+/* Cheongju city-center weather: 20-minute cache; no GPS tracking or API key needed.
+   Third-party Open-Meteo current conditions, not TAGO or KMA data. */
+const weatherCache={at:0,text:''};
+function weatherDescription(code){
+ if(code===0)return '맑음';
+ if([1,2].includes(code))return '대체로 맑음';
+ if(code===3)return '흐림';
+ if([45,48].includes(code))return '안개';
+ if([51,53,55,56,57].includes(code))return '이슬비';
+ if([61,63,65,66,67,80,81,82].includes(code))return '비';
+ if([71,73,75,77,85,86].includes(code))return '눈';
+ if([95,96,99].includes(code))return '뇌우';
+ return '정보 확인 중'
+}
+async function loadCheongjuWeather(){
+ const host=$('weatherNow');if(!host)return;
+ if(weatherCache.text&&Date.now()-weatherCache.at<1200000){host.textContent=weatherCache.text;return}
+ host.textContent='청주시 날씨 조회 중…';
+ try{
+  const url='https://api.open-meteo.com/v1/forecast?latitude=36.6424&longitude=127.4890&current=temperature_2m,weather_code&timezone=Asia%2FSeoul';
+  const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);
+  const data=await res.json(),temp=Number(data?.current?.temperature_2m),code=Number(data?.current?.weather_code);
+  if(data?.current?.temperature_2m==null||data?.current?.weather_code==null||!Number.isFinite(temp)||!Number.isFinite(code))throw Error('현재 날씨 데이터 없음');
+  const label='청주시 '+Math.round(temp)+'°C · '+weatherDescription(code);
+  weatherCache.at=Date.now();weatherCache.text=label;host.textContent=label
+ }catch(error){host.textContent='청주시 날씨 조회 불가';recordError(error,'날씨 정보')}
+}
+renderRecentTrips();
+loadCheongjuWeather();
+setInterval(()=>{if(!document.hidden)loadCheongjuWeather()},1200000);
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
 $('refresh').onclick=()=>{resetFailures();refresh()};
 setInterval(()=>{if(!document.hidden&&retryTimer===null&&!authBlocked)refresh()},15000);
