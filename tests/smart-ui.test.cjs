@@ -72,5 +72,6 @@ const navigator={geolocation:{getCurrentPosition:success=>success({coords:{latit
  assert.equal(app.otherTrip.routes.length,1);
  assert.equal(app.otherTrip.from.id,'b');
  assert.equal(app.otherTrip.to.id,'z');
- console.log('JI BUS V1.2 smart UI smoke tests PASS (15 assertions)');
+ assert.equal(JSON.parse(persisted.get('ji-bus-v1')).lastTrip.from.id,'b');
+ console.log('JI BUS V1.2 smart UI smoke tests PASS (16 assertions)');
 })().catch(e=>{console.error(e);process.exitCode=1});
