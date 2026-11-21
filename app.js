@@ -112,7 +112,11 @@ function stopSearchControl(container,onChoose){
    }
   },300)
  });
- return {input,results}
+ return {input,results,select(stops){
+  if(!stops?.length)return;
+  ++serial;clearTimeout(timer);input.value=stops[0].name;
+  results.replaceChildren();onChoose(stops)
+ }}
 }
 
 // Build 11: keep the physical travel order of each direction separate.
@@ -495,12 +499,76 @@ const fromControl=stopSearchControl($('otherFromResults'),stops=>{
  $('otherSelection').textContent=tripSummary();$('saveTrip').disabled=!(otherTrip.from&&otherTrip.to);
  revision++;resetView()
 });
+
+function distanceMetres(lat1,lon1,lat2,lon2){
+ const toRad=x=>x*Math.PI/180,dlat=toRad(lat2-lat1),dlon=toRad(lon2-lon1);
+ const a=Math.sin(dlat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dlon/2)**2;
+ return 6371000*2*Math.asin(Math.sqrt(Math.min(1,a)))
+}
+function nearbyStops(rows,lat,lon){
+ const found=new Map();
+ for(const raw of rows){
+  const stop=node(raw);
+  if(!stop.id||!stop.name||!Number.isFinite(stop.lat)||!Number.isFinite(stop.lon)||!stop.lat||!stop.lon)continue;
+  const distance=distanceMetres(lat,lon,stop.lat,stop.lon);
+  if(!Number.isFinite(distance))continue;
+  if(!found.has(stop.id)||found.get(stop.id).distance>distance)found.set(stop.id,{...stop,distance})
+ }
+ return [...found.values()].sort((a,b)=>a.distance-b.distance).slice(0,15)
+}
+const nearbyButton=$('nearbyFrom'),nearbyResults=$('nearbyResults');
+let nearbySerial=0;
+nearbyButton.onclick=()=>{
+ const serial=++nearbySerial;
+ nearbyResults.replaceChildren();
+ if(!navigator.geolocation){
+  showStopSearchState(nearbyResults,'위치 검색을 지원하지 않습니다. 정류장 이름으로 검색해 주세요.',true);return
+ }
+ if(!cfg.key){
+  showStopSearchState(nearbyResults,'설정에서 API 인증키를 먼저 등록하세요.',true);return
+ }
+ nearbyButton.disabled=true;
+ showStopSearchState(nearbyResults,'현재 위치 확인 중… 위치 접근을 허용해 주세요.');
+ navigator.geolocation.getCurrentPosition(async position=>{
+  if(serial!==nearbySerial)return;
+  showStopSearchState(nearbyResults,'주변 정류장 검색 중… 잠시만 기다려 주세요.');
+  try{
+   const lat=position.coords.latitude,lon=position.coords.longitude;
+   const rows=await api('stop','getCrdntPrxmtSttnList',{gpsLati:String(lat),gpsLong:String(lon)});
+   if(serial!==nearbySerial)return;
+   const stops=nearbyStops(rows,lat,lon);
+   nearbyResults.replaceChildren();
+   if(!stops.length){
+    showStopSearchState(nearbyResults,'주변에서 정류장을 찾지 못했습니다. 이름으로 검색해 주세요.');return
+   }
+   nearbyResults.append(el('p','가까운 정류장 '+stops.length+'개 · 출발지를 선택하세요.','muted'));
+   for(const stop of stops){
+    const b=el('button',stop.name+(stop.no?' ('+stop.no+')':'')+' · 약 '+Math.round(stop.distance)+'m');
+    b.type='button';
+    b.onclick=()=>{
+     ++nearbySerial;fromControl.select([stop]);nearbyResults.replaceChildren();
+     showStopSearchState(nearbyResults,'출발지 선택 완료 · '+stop.name)
+    };
+    nearbyResults.append(b)
+   }
+  }catch(e){
+   if(serial===nearbySerial)showStopSearchState(nearbyResults,'주변 정류장 검색 실패 · '+e.message,true)
+  }finally{if(serial===nearbySerial)nearbyButton.disabled=false}
+ },error=>{
+  if(serial!==nearbySerial)return;
+  const message=error.code===1?'위치 접근이 거부되었습니다. 권한을 허용하거나 직접 검색해 주세요.':
+   error.code===2?'현재 위치를 확인할 수 없습니다. 정류장 이름으로 검색해 주세요.':
+   '위치 확인 시간이 초과되었습니다. 다시 시도하거나 직접 검색해 주세요.';
+  showStopSearchState(nearbyResults,message,true);nearbyButton.disabled=false
+ },{enableHighAccuracy:true,timeout:12000,maximumAge:60000})
+};
 const toControl=stopSearchControl($('otherToResults'),stops=>{
  otherTrip.to=stops[0];otherTrip.toCandidates=stops;otherTrip.ready=false;otherTrip.routes=[];
  $('otherSelection').textContent=tripSummary();$('saveTrip').disabled=!(otherTrip.from&&otherTrip.to);
  revision++;resetView()
 });
 for(const [name,control] of [['from',fromControl],['to',toControl]])control.input.addEventListener('input',()=>{
+ if(name==='from'){++nearbySerial;nearbyButton.disabled=false;nearbyResults.replaceChildren()}
  if(otherTrip[name]?.name===control.input.value.trim())return;
  otherTrip[name]=null;otherTrip[name+'Candidates']=[];otherTrip.ready=false;otherTrip.routes=[];
  $('otherSelection').textContent='입력한 정류장을 검색 결과에서 선택하세요';
