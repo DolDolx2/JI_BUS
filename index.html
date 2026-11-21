@@ -1,0 +1,175 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#155e75"><title>JI BUS V1.1</title><style>
+*{box-sizing:border-box}body{margin:0;background:#eef3f6;color:#172c39;font:16px Pretendard,system-ui,sans-serif}main{max-width:540px;margin:auto;padding:18px}header,nav,.line{display:flex;align-items:center;justify-content:space-between;gap:8px}h1{margin:0;font-size:27px}small,.muted{color:#526879}nav{margin:20px 0}button,input,select{font:inherit;border:1px solid #c4d1da;border-radius:10px;padding:12px;background:white;color:inherit}button{cursor:pointer;font-weight:700}nav button{flex:1}button.active,button.primary{background:#155e75;color:white;border-color:#155e75}section,article{background:white;border:1px solid #dce5eb;border-radius:16px;padding:16px;margin-bottom:12px}input,select{width:100%;margin:6px 0 12px}label{display:block;font-weight:600}h2{font-size:19px;margin:0 0 12px}h3{margin:0;font-size:25px;color:#155e75}summary{cursor:pointer;padding:12px 0;color:#155e75;font-weight:700}.stoprow{display:grid;grid-template-columns:minmax(0,1fr) 70px;gap:14px;min-height:66px;align-items:stretch}.stopname{align-self:center;text-align:center;padding:12px 5px;border-radius:9px;background:#155e75;color:white;position:relative;overflow-wrap:anywhere}.stoprow:not(:last-child) .stopname:after{content:"";position:absolute;left:50%;top:100%;height:22px;border-left:2px solid #155e75}.stopname.board{background:#087f5b}.stopname.exit{background:#fff;color:#155e75;border:2px solid #155e75}.lane{background:#dce3e8;display:flex;align-items:center;justify-content:center;position:relative}.lane:before{content:"";position:absolute;height:100%;border-left:2px dashed white}.bus{z-index:1;background:#155e75;color:white;padding:6px;border-radius:8px;width:48px}.error{color:#a12424;white-space:pre-wrap}.eta{font-size:24px;font-weight:800;color:#087f5b}.past{opacity:.45}footer{text-align:center;font-size:12px;color:#526879;padding:15px} [hidden]{display:none!important} .results button{width:100%;text-align:left;margin-bottom:5px}
+button:disabled{opacity:.55;cursor:wait}#settings button{margin:4px 5px 4px 0}#settingsStatus{overflow-wrap:anywhere}.lane{flex-wrap:wrap}.bus{flex-shrink:0}
+/* Compact mobile layout — Build 07 */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{font-size:14px;line-height:1.45}
+main{padding:10px 12px;max-width:540px}
+header,nav,.line{gap:6px}
+h1{font-size:23px;line-height:1.15}
+small{font-size:11px;line-height:1.35}
+nav{margin:12px 0 9px}
+button,input,select{font-size:13px;padding:7px 10px;border-radius:7px;min-height:36px;line-height:1.3}
+nav button{min-height:38px;padding:8px 4px}
+section,article{padding:10px 12px;margin-bottom:8px;border-radius:11px}
+h2{font-size:16px;margin:0 0 7px}
+h3{font-size:22px;line-height:1.2}
+p{margin:6px 0;overflow-wrap:anywhere}
+input,select{margin:4px 0 8px}
+label{font-size:13px}
+summary{padding:7px 0;font-size:13px}
+.eta{font-size:21px;line-height:1.2}
+.muted,.error{font-size:12px}
+#heading p{margin:3px 0}
+#heading{padding:8px 12px}
+#settings button{margin:2px 4px 5px 0}
+#settings input,#settings select{min-height:39px}
+#saved{border-top:1px solid #dce5eb;padding-top:5px;margin-top:6px}
+#saved p{font-size:13px;margin:5px 0}
+#routeReport details{font-size:12px}
+#routeReport details div{padding:2px 0}
+.results button{min-height:38px;margin-bottom:4px;font-size:13px}
+#homePanel select{margin-bottom:3px}
+#status{margin:6px 2px 9px}
+.stoprow{grid-template-columns:minmax(0,1fr) 50px;gap:9px;min-height:44px}
+.stopname{font-size:12px;line-height:1.25;padding:7px 5px;border-radius:6px}
+.stoprow:not(:last-child) .stopname:after{height:15px}
+.lane:before{border-left-width:1px}
+.bus{width:34px;padding:3px;border-radius:5px}
+footer{font-size:10px;padding:9px 0}
+@media(max-width:340px){main{padding:8px}section,article{padding:9px}h1{font-size:21px}.eta{font-size:19px}}
+.transferCard{border-left:3px solid #b45309}.transferTag{font-size:12px;font-weight:700;color:#b45309}.transferCard h3{font-size:20px}.transferCard details{border-top:1px solid #dce5eb;margin-top:5px}#homePanel .results{margin-top:5px}
+/* Build 08 */
+:root{color-scheme:light;--bg:#eef3f6;--panel:#fff;--ink:#172c39;--muted:#526879;--border:#dce5eb;--control:#fff;--accent:#155e75;--future:#e2e8f0;--passed:#edf0f2;--current:#dbeafe;--current-ink:#1d4ed8;--past-ink:#64748b;--green:#087f5b;--amber:#92400e;--transfer:#fef3c7;--error:#a12424}
+:root[data-theme=dark]{color-scheme:dark;--bg:#101820;--panel:#1e293b;--ink:#e2e8f0;--muted:#a7b8c6;--border:#38495a;--control:#263746;--accent:#67e8f9;--future:#334155;--passed:#26313d;--current:#164e63;--current-ink:#bae6fd;--past-ink:#a0adba;--green:#4ade80;--amber:#fbbf24;--transfer:#493719;--error:#fca5a5}
+body{background:var(--bg);color:var(--ink)}
+section,article{background:var(--panel);border-color:var(--border)}
+button,input,select{background:var(--control);color:var(--ink);border-color:var(--border)}
+small,.muted,footer{color:var(--muted)}h3,summary{color:var(--accent)}.eta,.legEta{color:var(--green);font-variant-numeric:tabular-nums;white-space:nowrap}.eta.urgent,.legEta.urgent,.error{color:var(--error)}
+.topbar{position:sticky;top:0;z-index:30;background:var(--bg);padding:5px 0 1px}
+#refresh{display:flex;align-items:center;gap:4px}#refresh svg{width:15px;height:15px}#refresh.refreshing svg{animation:spin .9s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.routeFlag{font-size:11px;color:var(--accent);margin:3px 0}.routePath{font-weight:600}.transferCard .routeFlag,.transferTag{color:var(--amber)}
+.timelineRows{position:relative;padding:0 66px 0 0;isolation:isolate}
+.timelineRows:before{position:absolute;content:"";left:6px;top:22px;bottom:22px;border-left:1px solid var(--border)}
+.timelineRows .stoprow{height:44px;min-height:44px;display:grid;grid-template-columns:13px minmax(0,1fr);gap:5px;align-items:center}
+.timelineRows .stopname{background:var(--future);color:var(--ink);text-align:left;padding:5px 7px;max-height:40px;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;transition:background-color .35s,color .35s;line-height:1.2;border:1px solid transparent}
+.timelineRows .stopname:after{display:none}
+.timelineRows .stopname.passed{background:var(--passed);color:var(--past-ink)}
+.timelineRows .stopname.current{background:var(--current);color:var(--current-ink);border-color:#60a5fa;font-weight:700}
+.timelineRows .stopname.board{background:#087f5b;color:#fff;font-weight:700}
+.timelineRows .stopname.exit{background:#155e75;color:#fff;font-weight:700}
+.timelineRows .stopname.transfer{background:var(--transfer);color:var(--amber);font-weight:700}
+.stopDot{width:7px;height:7px;border-radius:50%;background:#94a3b8;justify-self:center;z-index:1}
+[data-state=current] .stopDot{background:#3b82f6}[data-state=board] .stopDot{background:#22c55e;width:10px;height:10px}[data-state=exit] .stopDot{background:#0891b2}[data-state=transfer] .stopDot{background:#d97706}
+.road,.markers{position:absolute;right:0;top:0;bottom:0;width:60px;border-radius:8px}
+.road{background:#424b54;border:5px solid #424b54;box-shadow:inset 1px 0 #aab7c2,inset -1px 0 #aab7c2}
+.road:before{content:"";position:absolute;left:50%;top:3px;bottom:3px;border-left:1px dashed #e2e8f0}
+.markers{pointer-events:none;overflow:visible}.vehicleMarker{position:absolute;top:0;left:50%;width:42px;height:36px;transition:transform 1s ease-in-out;will-change:transform}
+.vehicleMarker.noMotion{transition:none}.vehicleIcon{display:block;width:100%;height:100%;filter:drop-shadow(0 2px 2px #0007)}
+.routeToggle{display:block;width:100%;font-size:12px;margin-top:7px;min-height:32px;color:var(--accent)}
+.settingsGroup{border-top:1px solid var(--border);margin-top:8px;padding:4px 0}.settingsGroup>summary{font-size:14px}
+#themeMode{width:auto;min-height:34px;margin:0;font-size:12px;padding:4px}
+.themeRow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.legEta{font-weight:700;font-size:14px;display:block;margin-bottom:5px}
+@media(prefers-reduced-motion:reduce){.vehicleMarker,.timelineRows .stopname{transition:none}#refresh.refreshing svg{animation:none}}
+.routeResult{border-top:1px solid var(--border);margin-top:4px;padding-top:5px}.routeResult p{margin:3px 0}.routeSuccess{color:var(--green);font-weight:700;font-size:13px}.routeWarning{color:var(--error);font-weight:700;font-size:13px}.routeDiagnostics{margin-top:4px}.routeDiagnostics summary{font-size:12px}#settingsStatus:empty{display:none}
+nav{gap:4px}nav button{padding:8px 2px;font-size:13px}
+#otherPanel label{margin:8px 0 2px}#otherPanel #swapOther{font-size:12px;margin:3px 0 5px}
+#otherPanel #findOther{width:100%;margin-top:5px}
+#otherPanel .results button{margin-bottom:3px}
+
+/* V1.1 unified bus search */
+.topbar nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.topbar nav button{min-height:40px}
+#searchPanel label{display:block;margin:7px 0 3px}
+#searchPanel button{max-width:100%}
+#searchPanel #swapOther{display:block;width:100%;margin:2px 0 7px}
+.searchActions{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:8px}
+.searchActions button{margin:0;min-height:40px}
+#otherSelection{margin:8px 0 3px}
+.favoriteCard{margin-bottom:8px}
+.favoriteCard strong{font-size:15px;overflow-wrap:anywhere}
+.favoriteActions{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.favoriteActions button{padding:6px 9px;min-width:35px}
+#settings{max-width:100%}
+#settings>p{margin:8px 0}
+#settings input{margin-top:5px}
+#keyFeedback{margin:6px 0}
+.results p{margin:6px 0}
+@media(max-width:360px){.searchActions{grid-template-columns:1fr}.favoriteActions button{font-size:12px}}
+.departureHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.departureHead label{margin:0!important}
+#nearbyFrom{width:auto;min-height:34px;padding:6px 10px;font-size:12px;white-space:nowrap}
+#nearbyResults{margin:4px 0}
+#nearbyResults button{width:100%;text-align:left}
+#nearbyResults p{margin:6px 0}
+
+/* Build 04: route-specific next stop and terminus, under each nearby stop */
+#nearbyResults .nearbyStopCard{width:100%;display:block;text-align:left;padding:10px 12px;margin-bottom:6px;white-space:normal}
+.nearbyStopHead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.nearbyStopTitle{font-size:14px;line-height:1.35}
+.nearbyDistance{font-size:12px;white-space:nowrap;color:var(--muted);font-weight:600}
+.nearbyDirectionList{display:block;margin-top:5px;font-size:12px;line-height:1.4;font-weight:400}
+.nearbyDirectionLine{display:flex;flex-wrap:wrap;gap:2px 9px;padding:5px 0}
+.nearbyDirectionLine+.nearbyDirectionLine{border-top:1px solid var(--border)}
+.nearbyNext{color:var(--ink);font-weight:600}
+.nearbyTerminal{color:var(--muted)}
+.nearbyRouteNo{color:var(--accent);font-weight:600}
+.nearbyMore{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+</style></head><body><main>
+<div class="topbar">
+<header><div><h1>JI BUS</h1><small>V1.1 · 청주 실시간 버스 · Build 04</small></div><button id="refresh" type="button" aria-label="실시간 정보 갱신"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5 9a7 7 0 0 1 12-4l3 7M4 12l3 7a7 7 0 0 0 12-4"/></svg>갱신</button></header>
+<nav aria-label="주 메뉴"><button type="button" data-tab="search">버스 검색</button><button type="button" data-tab="favorites">즐겨찾기</button><button type="button" data-tab="settings">설정</button></nav>
+</div>
+<section id="searchPanel">
+<h2>출발·도착 정류장 검색</h2>
+<div class="departureHead"><label for="otherFromInput">출발 정류장</label><button id="nearbyFrom" type="button">내 주변 정류장</button></div><div id="otherFromResults" class="searchControl"></div><div id="nearbyResults" class="results" role="region" aria-label="주변 정류장 검색 결과"></div>
+<button id="swapOther" type="button">출발 · 도착 교환</button>
+<label for="otherToInput">도착 정류장</label><div id="otherToResults" class="searchControl"></div>
+<div class="searchActions"><button id="findOther" class="primary" type="button">노선 찾기</button><button id="saveTrip" type="button" disabled>☆ 즐겨찾기 저장</button></div>
+<p id="otherSelection" class="muted" role="status" aria-live="polite">출발·도착 정류장을 선택하세요.</p>
+</section>
+<section id="favoritesPanel" hidden><h2>즐겨찾기</h2><p class="muted">저장된 구간을 선택하면 해당 경로의 버스를 검색합니다.</p><div id="favoriteList"></div></section>
+<section id="settings" hidden><h2>API 인증키 설정</h2>
+<label for="key">공공데이터 일반 인증키 (Decoding)</label>
+<input id="key" type="password" autocomplete="off" autocapitalize="none" spellcheck="false">
+<button id="saveKey" class="primary" type="button">인증키 저장 및 확인</button>
+<p class="muted">인증키는 이 브라우저에 저장되며 외부에 공개하지 마세요.</p>
+<p id="settingsStatus" role="status" aria-live="polite"></p>
+</section>
+<section id="heading"></section><p id="status" role="status" aria-live="polite"></p><div id="cards"></div>
+<footer>JI BUS V1.1 · 디자인 및 개발 김정인</footer>
+</main><script>
+/* V1.1 Build 04: check the deployed version on every page opening. */
+(async function boot(){
+  const current='20261121.1104';
+  const versionUrl=new URL('./version.json',location.href);
+  versionUrl.searchParams.set('check',String(Date.now()));
+  let deployed=current;
+  try{
+    const response=await fetch(versionUrl,{cache:'no-store'});
+    if(response.ok){
+      const info=await response.json();
+      if(/^\d{8}\.\d{4}$/.test(String(info.build||'')))deployed=String(info.build);
+    }
+  }catch(error){ /* offline: start the bundled version without clearing saved data */ }
+  if(deployed!==current){
+    const url=new URL(location.href);
+    url.searchParams.set('v',deployed);
+    const reloadKey='ji-bus-reload-'+deployed;
+    let attempted=false;
+    try{attempted=sessionStorage.getItem(reloadKey)==='1';if(!attempted)sessionStorage.setItem(reloadKey,'1')}catch(error){}
+    if(!attempted){location.replace(url.href);return}
+    // Avoid a reload loop if an intermediate CDN still serves older HTML.
+    const notice=document.getElementById('status');
+    if(notice)notice.textContent='새 버전이 감지되었습니다. 페이지를 다시 열어 주세요.';
+  }
+  const script=document.createElement('script');
+  script.src='app.js?v='+encodeURIComponent(current);
+  script.onerror=function(){
+    const notice=document.getElementById('status');
+    if(notice)notice.textContent='앱 파일을 읽지 못했습니다. 네트워크 연결 후 다시 열어 주세요.'
+  };
+  document.body.appendChild(script);
+})();
+</script></body></html>
