@@ -180,9 +180,10 @@ function switchTab(next){
  clearRetry();retryCount=0;tab=next;revision++;
  document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===next));
  $('settings').hidden=next!=='settings';
+ $('dashboardPanel').hidden=next!=='home';
  $('searchPanel').hidden=next!=='search';
  $('favoritesPanel').hidden=next!=='favorites';
- $('recentPanel').hidden=next!=='search';
+ // Recent history belongs to the dashboard and remains part of that panel.
  const showManual=next==='search'&&searchMode==='manual';
  $('heading').hidden=!showManual;
  $('status').hidden=!showManual;
@@ -878,13 +879,17 @@ function showSmartResults(ranked,partial){
  host.append(note);
  unique.forEach((item,index)=>{
   const card=el('article',undefined,'smartCard');
+  const badge=el('span',index===0?'추천 1 · 우선 확인':'추천 '+(index+1),'smartRouteBadge');card.append(badge);
   const head=el('div',undefined,'line'),title=el('strong',(index+1)+'순위 · '+item.route.no+'번'),walk=el('span','약 '+Math.round(item.board.distance)+'m 도보','muted');
   head.append(title,walk);
   card.append(head,el('p',item.board.name+' 승차 → '+item.exit.name+' 하차','smartPath'));
   card.append(el('p',(directionLabel(item.route)||'운행방향 미표시')+' · '+item.stopsCount+'정류장 이동','muted'));
   const arrival=item.estimate!==null?'도착예정 약 '+Math.ceil(item.arrivalSeconds/60)+'분 후 · 도보 약 '+item.walkMinutes+'분 · 참고 합계 약 '+item.estimate+'분':
    item.arrivalKnown?'도보로 승차 가능한 도착 차량 미확인':'실시간 도착정보 미확인';
-  card.append(el('p',arrival,'smartTiming'));
+  const metrics=el('div',undefined,'smartMetricRow');
+  const metric=(caption,value)=>{const itemBox=el('div',undefined,'smartMetric');itemBox.append(el('span',caption),el('strong',value));return itemBox};
+  metrics.append(metric('도보','약 '+item.walkMinutes+'분'),metric('버스 도착',item.arrivalSeconds==null?'정보 없음':Math.ceil(item.arrivalSeconds/60)+'분 후'),metric('예상 합계',item.estimate==null?'확인 불가':'약 '+item.estimate+'분'));
+  card.append(metrics,el('p',arrival,'smartTiming'));
   const advice=departureAdvice(item.arrivalSeconds,item.walkMinutes);
   if(advice)card.append(el('p',advice.label,'leaveAdvice'));
   attachMapLinks(card,item.board);
@@ -1020,9 +1025,30 @@ async function loadCheongjuWeather(){
 renderRecentTrips();
 loadCheongjuWeather();
 setInterval(()=>{if(!document.hidden)loadCheongjuWeather()},1200000);
+
+/* Dashboard fast actions use the existing route controllers, never a separate router. */
+document.querySelectorAll('[data-quick]').forEach(b=>b.onclick=()=>{
+ const target=b.dataset.quick;
+ if(target==='favorites'){switchTab('favorites');return}
+ if(target==='smart'||target==='manual'){
+  setSearchMode(target);switchTab('search');return
+ }
+ if(target==='nearby'){
+  setSearchMode('manual');switchTab('search');
+  $('nearbyFrom').click()
+ }
+});
+function updateDashboardClock(){
+ const date=new Date();
+ const clock=$('clockNow'),today=$('todayDate');
+ if(clock)clock.textContent=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hour12:false}).format(date);
+ if(today)today.textContent=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'long',day:'numeric',weekday:'short'}).format(date);
+}
+updateDashboardClock();
+setInterval(updateDashboardClock,30000);
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
 $('refresh').onclick=()=>{resetFailures();refresh()};
 setInterval(()=>{if(!document.hidden&&retryTimer===null&&!authBlocked)refresh()},15000);
 setInterval(()=>{if(!document.hidden){const now=Date.now();document.querySelectorAll('[data-eta]').forEach(e=>tickEta(e,now))}},1000);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)clearRetry();else{resetFailures();refresh()}});
-switchTab(cfg.key?'search':'settings');
+switchTab(cfg.key?'home':'settings');
