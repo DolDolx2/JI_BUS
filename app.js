@@ -78,6 +78,7 @@ function showStopSearchState(host,message,failed=false){
 }
 function stopSearchControl(container,onChoose){
  const input=el('input'),results=el('div',undefined,'results');
+ input.id=container.id==='otherFromResults'?'otherFromInput':'otherToInput';
  input.placeholder='정류장 이름 또는 일부 입력';
  input.setAttribute('aria-label','정류장 이름 검색');
  container.append(input,results);
@@ -515,7 +516,7 @@ $('swapOther').onclick=()=>{
 };
 $('saveTrip').onclick=()=>{
  if(!validStop(otherTrip.from)||!validStop(otherTrip.to))return;
- const candidate=makeTrip('',otherTrip.from,otherTrip.to,otherTrip.toCandidates.find(x=>x.id!==otherTrip.to.id));
+ const candidate=makeTrip('',otherTrip.from,otherTrip.to);
  if(cfg.tripFavorites.some(x=>sameTrip(x,candidate))){$('otherSelection').textContent='이미 즐겨찾기에 등록된 구간입니다.';return}
  const title=prompt('즐겨찾기 이름',otherTrip.from.name+' → '+otherTrip.to.name);
  if(title===null)return;
@@ -542,11 +543,9 @@ async function searchTrip(){
    if(token!==revision)return;
    for(const item of items)if(item.routeid)ids.set(String(item.routeid),String(item.routeno))
   }
-  const previous=new Map(otherTrip.routes.map(r=>[r.id+'|'+(r.segment??''),r]));
   const routes=[];
   for(const [id,no] of ids){
-   const cached=[...previous.values()].filter(r=>r.id===id);
-   const variants=cached.length?cached:routeVariants(id,no,await api('route','getRouteAcctoThrghSttnList',{routeId:id}));
+   const variants=routeVariants(id,no,await api('route','getRouteAcctoThrghSttnList',{routeId:id}));
    if(token!==revision)return;
    routes.push(...variants.filter(r=>r.stops.length))
   }
