@@ -4,18 +4,29 @@ const store='ji-bus-v1';
 let cfg={key:'',stops:{},favorites:[],routes:[],last:''};
 try{cfg={...cfg,...JSON.parse(localStorage.getItem(store)||'{}')}}catch{}
 let tab='work',busy=false,revision=0;
+let retryCount=0,retryTimer=null,requestEpoch=0,authBlocked=false;
+const logErrors=[];
 const save=()=>localStorage.setItem(store,JSON.stringify(cfg));
 const arr=v=>Array.isArray(v)?v:v&&typeof v==='object'?[v]:[];
 const el=(tag,txt,cls)=>{const e=document.createElement(tag);if(txt!==undefined)e.textContent=txt;if(cls)e.className=cls;return e};
 const status=(s,err=false)=>{const e=$(tab==='settings'?'settingsStatus':'status')||$('status');e.textContent=s;e.className=err?'error':'muted'};
+const recordError=(e,context)=>{logErrors.push({at:Date.now(),context,reason:String(e.message||e).slice(0,160)});if(logErrors.length>20)logErrors.shift()};
+const clearRetry=()=>{if(retryTimer!==null)clearTimeout(retryTimer);retryTimer=null};
+function failureClass(e){const code=Number(e?.status);if([401,403].includes(code)||String(e?.message).includes('인증키')||String(e?.message).includes('SERVICE_KEY'))return 'auth';if(code===429)return 'limit';return 'transient'}
+function planRetry(e){recordError(e,'실시간 조회');const type=failureClass(e);if(type==='auth'){authBlocked=true;clearRetry();return '인증/승인 오류 · 환경설정을 확인하세요'}
+ retryCount++;const delay=type==='limit'?60000:retryCount===1?5000:retryCount===2?15000:Math.min(60000,30000*Math.pow(2,Math.max(0,retryCount-3)));clearRetry();
+ retryTimer=setTimeout(()=>{retryTimer=null;if(!document.hidden&&tab!=='settings')refresh()},delay);return '자동 재시도 '+Math.round(delay/1000)+'초 후';
+}
+function resetFailures(){retryCount=0;authBlocked=false;clearRetry()}
+
 const services={stop:'BusSttnInfoInqireService',route:'BusRouteInfoInqireService',arrival:'ArvlInfoInqireService',location:'BusLcInfoInqireService'};
 async function api(service,method,params={}){
  if(!cfg.key)throw Error('환경설정에서 인증키를 입력하세요.');
  let u=new URL('https://apis.data.go.kr/1613000/'+services[service]+'/'+method);
  u.search=new URLSearchParams({serviceKey:cfg.key,cityCode:'33010',_type:'json',numOfRows:'1000',pageNo:'1',...params});
- const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);let res;try{res=await fetch(u,{signal:controller.signal,cache:'no-store'})}finally{clearTimeout(timer)};if(!res.ok)throw Error('API HTTP '+res.status+' — 인증키 및 활용 승인 확인');
+ const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);let res;try{res=await fetch(u,{signal:controller.signal,cache:'no-store'})}finally{clearTimeout(timer)};if(!res.ok){const e=Error('API HTTP '+res.status+' — 인증키 및 활용 승인 확인');e.status=res.status;throw e}
  let json=await res.json(),h=json.response?.header,body=json.response?.body;
- if(!h||!['00','0','0000'].includes(String(h.resultCode)))throw Error('API 응답 오류: '+(h?.resultMsg||json.OpenAPI_ServiceResponse?.cmmMsgHeader?.returnAuthMsg||'응답 형식 확인 필요'));
+ if(!h||!['00','0','0000'].includes(String(h.resultCode))){const e=Error('API 응답 오류: '+(h?.resultMsg||json.OpenAPI_ServiceResponse?.cmmMsgHeader?.returnAuthMsg||'응답 형식 확인 필요'));if(/SERVICE_KEY|인증|권한|승인|AUTH/i.test(e.message))e.status=403;throw e}
  let items=arr(body?.items?.item);if(Number(body?.totalCount)>items.length)throw Error('조회 결과가 페이지 한도를 초과했습니다.');
  return items;
 }
@@ -31,7 +42,7 @@ let extraHomeStops=[]; const transferCache=new Map();
 function homeCandidates(){let m=new Map([...cfg.favorites,...extraHomeStops].filter(s=>s.id!==cfg.stops.home?.id).map(s=>[s.id,s]));for(const r of cfg.routes)for(let j=0;j<r.stops.length;j++)if(r.stops[j].id===cfg.stops.home?.id)for(let i=0;i<j;i++)if(r.stops[i].id!==cfg.stops.home.id)m.set(r.stops[i].id,r.stops[i]);return [...m.values()]}
 function populateHome(order){let list=order||homeCandidates().sort((a,b)=>Number(cfg.favorites.some(x=>x.id===b.id))-Number(cfg.favorites.some(x=>x.id===a.id))||a.name.localeCompare(b.name,'ko'));$('homeStop').replaceChildren(new Option('탑승 정류장 선택',''),...list.map(s=>new Option(name(s)+(s.distance!=null?' · '+Math.round(s.distance)+'m':''),s.id)));$('homeStop').value=cfg.last}
 function routesFor(){let out=[];for(const r of cfg.routes){let a=tab==='work'?cfg.stops.board?.id:cfg.last;let targets=tab==='work'?[cfg.stops.exit?.id,cfg.stops.alt?.id]:[cfg.stops.home?.id];for(const b of targets.filter(Boolean))for(const p of pairs(r.stops,a,b))out.push({...r,...p})}return out}
-function switchTab(t){tab=t;revision++;document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));$('settings').hidden=t!=='settings';$('homePanel').hidden=t!=='home';$('heading').hidden=t==='settings';resetView();$('heading').dataset.heading='';if(t==='settings'){showSaved();status('')}else{populateHome();refresh()}}
+function switchTab(t){clearRetry();retryCount=0;tab=t;revision++;document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));$('settings').hidden=t!=='settings';$('homePanel').hidden=t!=='home';$('heading').hidden=t==='settings';resetView();$('heading').dataset.heading='';if(t==='settings'){showSaved();status('')}else{populateHome();refresh()}}
 // Build 08: persistent, keyed cards and vehicle markers.
 let lastGood=0, viewRevision=-1, autoOpened=false;
 const routeKey=r=>r.id+':'+r.i+':'+r.j;
@@ -177,7 +188,7 @@ async function fetchLocation(id){
  catch(e){return {v:locationCache.get(id)?.v||[],e:e.message}}
 }
 async function refresh(){
- if(tab==='settings'||busy||document.hidden)return;
+ if(tab==='settings'||busy||document.hidden||authBlocked)return;
  if(viewRevision!==revision)resetView();
  const rev=revision,list=routesFor(), heading=tab==='work'?(cfg.stops.board?.name||'승차 정류장 미설정')+' → '+(cfg.stops.exit?.name||'하차 정류장 미설정'):(cfg.stops.home?.name||'귀가 목적지 미설정')+' 방면';
  if($('heading').dataset.heading!==heading){$('heading').replaceChildren(el('h2',tab==='work'?'출근':'귀가'),el('p',heading));$('heading').dataset.heading=heading}
@@ -199,9 +210,9 @@ async function refresh(){
   if(rev!==revision)return;
   arrangeCards(keys);
   if(!autoOpened&&keys.length){const preferred=keys.find(k=>k.startsWith('direct:')&&liveCards.get(k).eta.dataset.eta)||keys.find(k=>k.startsWith('transfer:'))||keys[0];liveCards.get(preferred).details.open=true;autoOpened=true}
-  lastGood=at;const partial=[...loc.values()].some(l=>l.e);
+  lastGood=at;resetFailures();const partial=[...loc.values()].some(l=>l.e);
   status('갱신 '+new Date(lastGood).toLocaleTimeString('ko-KR')+(partial?' · 일부 위치 지연':'')+(transferError?' · '+transferError:!keys.length?' · 연결 경로 없음':''),!!transferError||partial);
- }catch(e){if(rev===revision)status(lastGood?'조회 지연 · 마지막 정상 수신 '+new Date(lastGood).toLocaleTimeString('ko-KR')+' · '+e.message:'조회 실패: '+e.message,true)}
+ }catch(e){if(rev===revision){const retry=planRetry(e);status((lastGood?'조회 지연 · 마지막 정상 수신 '+new Date(lastGood).toLocaleTimeString('ko-KR'):'조회 실패')+' · '+retry,true)}}
  finally{busy=false;$('refresh').classList.remove('refreshing');$('refresh').removeAttribute('aria-busy');if(rev!==revision&&tab!=='settings')refresh()}
 }
 $('key').value=cfg.key;
@@ -220,7 +231,7 @@ restoreInput.onchange=async()=>{try{const file=restoreInput.files[0];if(!file)re
 $('saveKey').onclick=async()=>{
  const btn=$('saveKey'),key=$('key').value.trim();if(!key){keyMessage('일반 인증키(Decoding)를 입력하세요.',true);return}
  btn.disabled=true;btn.textContent='연결 확인 중…';keyMessage('인증키 저장 및 API 연결 확인 중…');
- try{cfg.key=key;save();keyMessage('인증키 저장 완료 · API 연결 확인 중…');
+ try{cfg.key=key;resetFailures();save();keyMessage('인증키 저장 완료 · API 연결 확인 중…');
  await api('arrival','getCtyCodeList');keyMessage('인증키 저장 완료 · 버스도착정보 API 연결 성공. 아래에서 정류장을 검색하세요.');
  }catch(e){keyMessage('처리 실패 또는 연결 미확인: '+(['TimeoutError','AbortError'].includes(e.name)?'응답 시간 초과':e.message)+'. 활용 승인 및 인증키를 확인하세요.',true)}
  finally{btn.disabled=false;btn.textContent='인증키 저장 및 확인'}
@@ -277,8 +288,8 @@ function groupSettings(){
 }
 groupSettings();
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
-$('refresh').onclick=refresh;
-setInterval(()=>{if(!document.hidden)refresh()},15000);
+$('refresh').onclick=()=>{resetFailures();refresh()};
+setInterval(()=>{if(!document.hidden&&retryTimer===null&&!authBlocked)refresh()},15000);
 setInterval(()=>{if(!document.hidden){const now=Date.now();document.querySelectorAll('[data-eta]').forEach(e=>tickEta(e,now));}},1000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)clearRetry();else{resetFailures();refresh()}});
 switchTab(cfg.routes.length?'work':'settings');
