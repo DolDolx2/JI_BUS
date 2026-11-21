@@ -13,8 +13,8 @@ assert.match(html,/<text[^>]+>청주시<\/text>/);
 assert.match(html,/repeatCount="indefinite"/);
 assert.match(html,/keyPoints="0;1;0"/);
 assert.match(html,/keyTimes="0;0\.5;1"/);
-assert.match(html,/V1\.3 · 청주 실시간 버스 · Build 01/);
-assert.match(scripts[1],/const current='20261121\.1301'/);
+assert.match(html,/V1\.3 · 청주 실시간 버스 · Build 02/);
+assert.match(scripts[1],/const current='20261121\.1302'/);
 const init=new Function('document','window','setTimeout','clearTimeout',scripts[0]);
 function fixture(reduced=false){
  const button={handlers:{},addEventListener(kind,fn){this.handlers[kind]=fn}};
