@@ -266,7 +266,7 @@ function transferPaths(firstRoutes,lastRoutes,origin,dest){
  const found=new Map();
  for(const r of firstRoutes)for(let i=0;i<r.stops.length;i++)if(isSource(r.stops[i]))for(let j=i+1;j<r.stops.length;j++){
   let id=r.stops[j].id;if(isDest(r.stops[j]))break;
-  for(const second of byStop.get(id)||[]){if(second.id===r.id)continue;let first={...r,i,j},count=j-i+second.j-second.i,key=r.id+'|'+second.id+'|'+id;
+  for(const second of byStop.get(id)||[]){if(second.id===r.id)continue;let first={...r,i,j},count=j-i+second.j-second.i,key=r.id+'|'+(r.segment??'')+'|'+second.id+'|'+(second.segment??'')+'|'+id;
    if(!found.has(key)||found.get(key).count>count)found.set(key,{first,second,count,stop:r.stops[j],key})
   }
  }
@@ -289,7 +289,7 @@ async function showTransfers(origin,arrivalRows,rev,at){
  const paths=tab==='other'?transferPaths(otherTrip.routes,otherTrip.routes,otherTrip.from,otherTrip.to):transferPaths(firstRoutes,cfg.routes,homeStart||origin,cfg.stops.home);
  const score=p=>Number(arrivalsFor(arrivalRows,p.first.id)[0]?.arrtime??Infinity);
  paths.sort((a,b)=>Number.isFinite(score(a))!==Number.isFinite(score(b))?(Number.isFinite(score(a))?-1:1):(score(a)-score(b)||a.count-b.count));
- const seen=new Set(),top=[];for(const p of paths){let k=p.first.id+'|'+p.second.id;if(seen.has(k))continue;seen.add(k);top.push(p);if(top.length===3)break}
+ const seen=new Set(),top=[];for(const p of paths){let k=p.first.id+'|'+(p.first.segment??'')+'|'+p.second.id+'|'+(p.second.segment??'');if(seen.has(k))continue;seen.add(k);top.push(p);if(top.length===3)break}
  const ats=new Map(),firstAts=new Map(),loc=new Map();
  for(const p of top){
   const boardId=p.first.stops[p.first.i].id;
@@ -307,7 +307,7 @@ async function showTransfers(origin,arrivalRows,rev,at){
   setEta(o.eta,arrivalsFor(first.rows,p.first.id)[0]?.arrtime,first.at);
   textTo(o.summary,'두 차량 위치 · 현재 기준');
   if(!o.legs.length){for(let i=0;i<2;i++){const d=el('details'),s=el('summary'),v=el('span',undefined,'legEta'),t=makeTimeline(i?p.second:p.first);d.append(s,v,t.wrap);o.details.append(d);o.legs.push({d,s,v,t})}}
-  for(const [i,r] of [p.first,p.second].entries()){const leg=o.legs[i],l=loc.get(r.id);textTo(leg.s,(i+1)+'구간 · '+r.no+'번 · '+r.stops[r.i].name+' 승차');
+  for(const [i,r] of [p.first,p.second].entries()){const leg=o.legs[i],l=loc.get(r.id);textTo(leg.s,(i+1)+'구간 · '+r.no+'번'+(directionLabel(r)?' · '+directionLabel(r):'')+' · '+r.stops[r.i].name+' 승차');
    setEta(leg.v,i?arrivalsFor(second.rows,r.id)[0]?.arrtime:arrivalsFor(first.rows,r.id)[0]?.arrtime,i?second.at:first.at);
    if(i&&second.error){leg.v.textContent='환승 도착정보 조회 실패';delete leg.v.dataset.eta}
    updateTimeline(leg.t,r,l.v,l.e||'',i?'second':'first')
@@ -435,9 +435,9 @@ $('findOther').onclick=async()=>{
   const candidates=[...candidatesMap.values()];
   for(const s of candidates){const items=await api('stop','getSttnThrghRouteList',{nodeid:s.id});for(const x of items)if(x.routeid)ids.set(String(x.routeid),String(x.routeno))}
   const results=[];
-  for(const [id,no] of ids){let r=cfg.routes.find(x=>x.id===id);if(!r)r=otherTrip.routes.find(x=>x.id===id);
-   if(!r)r=routeVariants(id,no,await api('route','getRouteAcctoThrghSttnList',{routeId:id}));
-   for(const variant of (Array.isArray(r)?r:[r]))if(variant.stops.length)results.push(variant)
+  for(const [id,no] of ids){let r=cfg.routes.filter(x=>x.id===id);if(!r.length)r=otherTrip.routes.filter(x=>x.id===id);
+   if(!r.length)r=routeVariants(id,no,await api('route','getRouteAcctoThrghSttnList',{routeId:id}));
+   for(const variant of r)if(variant.stops.length)results.push(variant)
   }
   otherTrip.routes=results;otherTrip.ready=true;revision++;$('otherSelection').textContent='노선 '+results.length+'개 분석 · 실시간 도착 및 환승 검색';refresh();
  }catch(e){$('otherSelection').textContent='경로 검색 실패: '+e.message;recordError(e,'기타 검색')}
