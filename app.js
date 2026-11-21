@@ -34,7 +34,7 @@ const node=x=>({id:String(x.nodeid??''),name:String(x.nodenm??''),no:String(x.no
 const name=x=>x.name+(x.no?' ('+x.no+')':'');
 
 /* P6: unified stop lookup. Existing route stops are used as local fuzzy index. */
-const normStop=s=>String(s||'').normalize('NFKC').toLocaleLowerCase('ko').replace(/[\\s·.,()\-_/]/g,'');
+const normStop=s=>String(s||'').normalize('NFKC').toLocaleLowerCase('ko').replace(/[\s·.,()\-_/]/g,'');
 function editDistance(a,b,limit=2){if(Math.abs(a.length-b.length)>limit)return limit+1;let prev=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){let next=[i];for(let j=1;j<=b.length;j++)next[j]=Math.min(prev[j]+1,next[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=next;if(Math.min(...prev)>limit)return limit+1}return prev[b.length]}
 function searchRank(s,q){
  const n=normStop(s.name),x=normStop(q);if(!x)return 999;
@@ -178,17 +178,22 @@ function directCard(r,a,location,first,at){
 
 /* One transfer at the identical physical stop ID, in forward route order. */
 function transferPaths(firstRoutes,lastRoutes,origin,dest){
+ const first={id:origin,name:typeof origin==='string'?'':origin?.name},last={id:dest,name:typeof dest==='string'?'':dest?.name};
+ const isSource=s=>typeof origin==='string'?s.id===origin:selectedMatches(s,origin);
+ const isDest=s=>typeof dest==='string'?s.id===dest:selectedMatches(s,dest);
  const byStop=new Map();
- for(const r of lastRoutes)for(let j=0;j<r.stops.length;j++)if(r.stops[j].id===dest)
-   for(let i=0;i<j;i++){let id=r.stops[i].id;if(id===origin||id===dest)continue;let a=byStop.get(id)||[];a.push({...r,i,j});byStop.set(id,a)}
- const found=new Map();
- for(const r of firstRoutes)for(let i=0;i<r.stops.length;i++)if(r.stops[i].id===origin){
-   for(let j=i+1;j<r.stops.length;j++){let id=r.stops[j].id;if(id===dest)break;
-    for(const second of byStop.get(id)||[]){if(second.id===r.id)continue;const first={...r,i,j};const count=j-i+second.j-second.i;const key=r.id+'|'+second.id+'|'+id;
-     if(!found.has(key)||found.get(key).count>count)found.set(key,{first,second,count,stop:r.stops[j],key})}
-   }
+ for(const r of lastRoutes)for(let j=0;j<r.stops.length;j++)if(isDest(r.stops[j]))for(let i=0;i<j;i++){
+  let id=r.stops[i].id;if(isSource(r.stops[i])||isDest(r.stops[i]))continue;
+  let arr=byStop.get(id)||[];arr.push({...r,i,j});byStop.set(id,arr)
  }
- return [...found.values()].sort((a,b)=>a.count-b.count||a.key.localeCompare(b.key));
+ const found=new Map();
+ for(const r of firstRoutes)for(let i=0;i<r.stops.length;i++)if(isSource(r.stops[i]))for(let j=i+1;j<r.stops.length;j++){
+  let id=r.stops[j].id;if(isDest(r.stops[j]))break;
+  for(const second of byStop.get(id)||[]){if(second.id===r.id)continue;let first={...r,i,j},count=j-i+second.j-second.i,key=r.id+'|'+second.id+'|'+id;
+   if(!found.has(key)||found.get(key).count>count)found.set(key,{first,second,count,stop:r.stops[j],key})
+  }
+ }
+ return [...found.values()].sort((a,b)=>a.count-b.count||a.key.localeCompare(b.key))
 }
 async function loadFirstRoutes(origin){
  let hit=transferCache.get(origin);if(hit&&Date.now()-hit.time<600000)return hit.routes;
@@ -202,7 +207,7 @@ const arrivalsFor=(rows,id)=>rows.filter(x=>String(x.routeid)===id&&x.arrtime!=n
 function etaText(rows,id){let a=arrivalsFor(rows,id)[0];return a?(Number(a.arrtime)===0?'도착 예정':Math.ceil(Number(a.arrtime)/60)+'분 후'):'도착정보 없음'}
 async function showTransfers(origin,arrivalRows,rev,at){
  const firstRoutes=tab==='other'?otherTrip.routes:await loadFirstRoutes(origin);if(rev!==revision)return [];
- const paths=tab==='other'?transferPaths(otherTrip.routes,otherTrip.routes,otherTrip.from.id,otherTrip.to.id):transferPaths(firstRoutes,cfg.routes,origin,cfg.stops.home.id);
+ const paths=tab==='other'?transferPaths(otherTrip.routes,otherTrip.routes,otherTrip.from,otherTrip.to):transferPaths(firstRoutes,cfg.routes,origin,cfg.stops.home.id);
  const score=p=>Number(arrivalsFor(arrivalRows,p.first.id)[0]?.arrtime??Infinity);
  paths.sort((a,b)=>Number.isFinite(score(a))!==Number.isFinite(score(b))?(Number.isFinite(score(a))?-1:1):(score(a)-score(b)||a.count-b.count));
  const seen=new Set(),top=[];for(const p of paths){let k=p.first.id+'|'+p.second.id;if(seen.has(k))continue;seen.add(k);top.push(p);if(top.length===3)break}
@@ -350,7 +355,9 @@ $('findOther').onclick=async()=>{
 
 const homeQuery=el('input'),homeSearch=el('button','정류장 검색'),homeSearchList=el('div',undefined,'results');
 homeQuery.placeholder='직행·환승 탑승 정류장 검색';$('homeStop').after(homeQuery,homeSearch,homeSearchList);
-homeSearch.onclick=async()=>{const q=homeQuery.value.trim();if(!q)return;homeSearch.disabled=true;try{const rows=(await api('stop','getSttnNoList',{nodeNm:q})).map(node).filter(s=>s.id&&s.id!==cfg.stops.home?.id);homeSearchList.replaceChildren();for(const s of rows){let b=el('button',name(s));b.onclick=()=>{if(!cfg.favorites.some(x=>x.id===s.id))cfg.favorites.push(s);cfg.last=s.id;save();revision++;populateHome();homeSearchList.replaceChildren();refresh()};homeSearchList.append(b)}$('gpsInfo').textContent=rows.length+'개 검색 결과 · 선택 시 즐겨찾기 저장'}catch(e){$('gpsInfo').textContent='정류장 검색 실패: '+e.message}finally{homeSearch.disabled=false}};
+homeSearch.onclick=async()=>{const q=homeQuery.value.trim();if(!q)return;homeSearch.disabled=true;try{const groups=groupStops((await findStops(q)).filter(s=>s.id&&s.id!==cfg.stops.home?.id));homeSearchList.replaceChildren();
+ for(const g of groups){let b=el('button',g.name+(g.stops.length>1?' · 방향 자동 판별':''));b.onclick=()=>{for(const s of g.stops)if(!cfg.favorites.some(x=>x.id===s.id))cfg.favorites.push(s);cfg.last=g.stops[0].id;save();revision++;populateHome();homeSearchList.replaceChildren();refresh()};homeSearchList.append(b)}
+ $('gpsInfo').textContent=groups.length+'개 검색 결과 · 선택 시 즐겨찾기 저장'}catch(e){$('gpsInfo').textContent='정류장 검색 실패: '+e.message}finally{homeSearch.disabled=false}};
 $('homeStop').onchange=()=>{cfg.last=$('homeStop').value;save();revision++;refresh()};
 $('gps').onclick=()=>{if(!navigator.geolocation){$('gpsInfo').textContent='GPS 미지원';return}navigator.geolocation.getCurrentPosition(p=>{let rad=x=>x*Math.PI/180,lat=p.coords.latitude,lon=p.coords.longitude;let list=homeCandidates().filter(s=>Number.isFinite(s.lat)&&Number.isFinite(s.lon)&&s.lat!==0&&s.lon!==0).map(s=>{let h=Math.sin(rad(s.lat-lat)/2)**2+Math.cos(rad(lat))*Math.cos(rad(s.lat))*Math.sin(rad(s.lon-lon)/2)**2;return {...s,distance:6371000*2*Math.asin(Math.sqrt(Math.min(1,h)))}}).sort((a,b)=>a.distance-b.distance);populateHome(list);$('gpsInfo').textContent=list.length?'직선거리 기준 · 가까운 정류장부터 표시':'좌표 정보 없음 · 직접 선택';if(!list.length)populateHome()},e=>{$('gpsInfo').textContent='위치 확인 실패 · 직접 선택 가능'},{enableHighAccuracy:true,timeout:12000})};
 // Theme is independent of the existing settings schema and backup.
