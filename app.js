@@ -516,6 +516,94 @@ function nearbyStops(rows,lat,lon){
  }
  return [...found.values()].sort((a,b)=>a.distance-b.distance).slice(0,15)
 }
+// Build 04: retain route-specific next stops and terminal stations together.
+// These are short-lived in-memory caches; no API key or fetched data is persisted.
+const nearbyRouteCache=new Map();
+const nearbyRouteCacheMs=6*60*60*1000;
+async function nearbyRouteDetails(id,no){
+ const current=nearbyRouteCache.get(id);
+ if(current&&Date.now()-current.at<nearbyRouteCacheMs)return current.promise;
+ const promise=(async()=>{
+  const variants=routeVariants(id,no,await api('route','getRouteAcctoThrghSttnList',{routeId:id}));
+  // A single undirected loop may pass its terminus and continue back.
+  // Request named endpoints only for this ambiguous shape.
+  const info=variants.length===1&&!variants[0].direction
+   ?await getRouteInfo(id):null;
+  return {variants,info}
+ })();
+ nearbyRouteCache.set(id,{at:Date.now(),promise});
+ try{return await promise}catch(error){nearbyRouteCache.delete(id);throw error}
+}
+function nextAndTerminal(variant,index,info){
+ const stops=variant.stops;
+ if(index>=stops.length-1)return null;
+ const next=stops[index+1];
+ const endpoints=[info?.endnodenm,info?.startnodenm]
+  .map(x=>normStop(x)).filter(Boolean);
+ let terminal=null;
+ // In a continuous outbound/return loop, the first future endpoint is the
+ // correct endpoint for that direction (not necessarily the last route stop).
+ if(endpoints.length){
+  for(let j=index+1;j<stops.length;j++){
+   if(endpoints.includes(normStop(stops[j].name))){terminal=stops[j];break}
+  }
+ }
+ // Explicit up/down segments or independently split legs have a known end.
+ if(!terminal&&(variant.direction!==''||variant.segment!==''))terminal=stops[stops.length-1];
+ // Do not guess a terminal for an undivided route lacking endpoint data.
+ return {next:next.name,terminal:terminal?.name||null}
+}
+function directionSummaries(stop,routeDetails){
+ const candidates=new Map();
+ for(const {id,no,variants,info} of routeDetails){
+  for(const variant of variants){
+   for(let i=0;i<variant.stops.length-1;i++){
+    if(variant.stops[i].id!==stop.id)continue;
+    const pair=nextAndTerminal(variant,i,info);
+    if(!pair)continue;
+    const key=normStop(pair.next)+'|'+normStop(pair.terminal||'');
+    if(!candidates.has(key))candidates.set(key,{next:pair.next,terminal:pair.terminal,routes:[]});
+    const entry=candidates.get(key);
+    if(!entry.routes.includes(no))entry.routes.push(no)
+   }
+  }
+ }
+ return [...candidates.values()]
+}
+async function fetchStopDirections(stop){
+ const passing=await api('stop','getSttnThrghRouteList',{nodeid:stop.id});
+ const routes=new Map();
+ for(const item of passing){
+  if(item.routeid)routes.set(String(item.routeid),String(item.routeno??'노선번호 없음'))
+ }
+ // Limit API requests for a single stop: representative route-bound pairs
+ // are shown, never mislabeled as a complete list when there are more.
+ const limited=[...routes].slice(0,4);
+ const details=[],errors=[];
+ for(const [id,no] of limited){
+  try{details.push({id,no,...await nearbyRouteDetails(id,no)})}
+  catch(error){errors.push(error)}
+ }
+ return {directions:directionSummaries(stop,details),totalRoutes:routes.size,checkedRoutes:details.length,errors:errors.length}
+}
+function showNearbyDirections(host,data){
+ host.replaceChildren();
+ const {directions,totalRoutes,checkedRoutes,errors}=data;
+ if(!directions.length){
+  host.append(el('span',errors?'방향 정보 확인 실패':'방향 정보 없음','muted'));
+  return
+ }
+ for(const d of directions.slice(0,3)){
+  const row=el('span',undefined,'nearbyDirectionLine');
+  row.append(el('span','다음: '+d.next,'nearbyNext'));
+  row.append(el('span','종점: '+(d.terminal||'확인 필요'),'nearbyTerminal'));
+  row.append(el('span',d.routes.join(', ')+'번','nearbyRouteNo'));
+  host.append(row)
+ }
+ if(directions.length>3||totalRoutes>checkedRoutes){
+  host.append(el('span','그 외 노선/방향 있음 · 대표 정보 표시','nearbyMore'))
+ }
+}
 const nearbyButton=$('nearbyFrom'),nearbyResults=$('nearbyResults');
 let nearbySerial=0;
 nearbyButton.onclick=()=>{
@@ -542,15 +630,37 @@ nearbyButton.onclick=()=>{
     showStopSearchState(nearbyResults,'주변에서 정류장을 찾지 못했습니다. 이름으로 검색해 주세요.');return
    }
    nearbyResults.append(el('p','가까운 정류장 '+stops.length+'개 · 출발지를 선택하세요.','muted'));
+   const jobs=[];
    for(const stop of stops){
-    const b=el('button',stop.name+(stop.no?' ('+stop.no+')':'')+' · 약 '+Math.round(stop.distance)+'m');
-    b.type='button';
-    b.onclick=()=>{
-     ++nearbySerial;fromControl.select([stop]);nearbyResults.replaceChildren();
+    const button=el('button',undefined,'nearbyStopCard');
+    button.type='button';
+    const head=el('span',undefined,'nearbyStopHead');
+    head.append(el('strong',stop.name,'nearbyStopTitle'),el('span','약 '+Math.round(stop.distance)+'m','nearbyDistance'));
+    const directions=el('span','다음 정류장·종점 조회 중…','nearbyDirectionList muted');
+    button.append(head,directions);
+    button.onclick=()=>{
+     ++nearbySerial;
+     fromControl.select([stop]);
+     nearbyResults.replaceChildren();
      showStopSearchState(nearbyResults,'출발지 선택 완료 · '+stop.name)
     };
-    nearbyResults.append(b)
+    nearbyResults.append(button);
+    jobs.push({stop,directions})
    }
+   // Progressively enrich visible cards, while bounding concurrent requests.
+   let nextJob=0;
+   const worker=async()=>{
+    while(nextJob<jobs.length&&serial===nearbySerial){
+     const job=jobs[nextJob++];
+     try{
+      const data=await fetchStopDirections(job.stop);
+      if(serial===nearbySerial)showNearbyDirections(job.directions,data)
+     }catch(error){
+      if(serial===nearbySerial)showStopSearchState(job.directions,'방향 정보 확인 실패',true)
+     }
+    }
+   };
+   await Promise.all([worker(),worker(),worker()]);
   }catch(e){
    if(serial===nearbySerial)showStopSearchState(nearbyResults,'주변 정류장 검색 실패 · '+e.message,true)
   }finally{if(serial===nearbySerial)nearbyButton.disabled=false}
