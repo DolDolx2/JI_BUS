@@ -181,13 +181,14 @@ function switchTab(next){
  $('settings').hidden=next!=='settings';
  $('searchPanel').hidden=next!=='search';
  $('favoritesPanel').hidden=next!=='favorites';
- $('heading').hidden=next!=='search';
- $('status').hidden=next!=='search';
- $('cards').hidden=next!=='search';
- $('refresh').hidden=next!=='search';
+ const showManual=next==='search'&&searchMode==='manual';
+ $('heading').hidden=!showManual;
+ $('status').hidden=!showManual;
+ $('cards').hidden=!showManual;
+ $('refresh').hidden=!showManual;
  resetView();
  if(next==='favorites')renderFavorites();
- if(next==='search'&&otherTrip.ready)refresh();
+ if(next==='search'&&showManual&&otherTrip.ready)refresh();
 }
 let lastGood=0, viewRevision=-1, autoOpened=false;
 const routeKey=r=>r.id+':'+(r.segment??'')+':'+(r.direction??'')+':'+r.i+':'+r.j;
@@ -366,7 +367,7 @@ async function fetchLocation(id){
  catch(e){return {v:locationCache.get(id)?.v||[],e:e.message}}
 }
 async function refresh(){
- if(tab!=='search'||busy||document.hidden||authBlocked||!otherTrip.ready)return;
+ if(tab!=='search'||searchMode!=='manual'||busy||document.hidden||authBlocked||!otherTrip.ready)return;
  if(viewRevision!==revision)resetView();
  const rev=revision,list=routesFor();
  const heading=(otherTrip.from?.name||'출발 미선택')+' → '+(otherTrip.to?.name||'도착 미선택');
@@ -464,7 +465,7 @@ function renderFavorites(){
   card.append(header,el('p',trip.from.name+' → '+trip.to.name+(trip.alt?' · 대체 하차 '+trip.alt.name:''),'muted'));
   const actions=el('div',undefined,'favoriteActions');
   const open=el('button','검색','primary');
-  open.onclick=()=>{setTrip(trip.from,trip.to,trip.alt);fromControl.input.value=trip.from.name;toControl.input.value=trip.to.name;switchTab('search');searchTrip()};
+  open.onclick=()=>{setTrip(trip.from,trip.to,trip.alt);fromControl.input.value=trip.from.name;toControl.input.value=trip.to.name;setSearchMode('manual');switchTab('search');searchTrip()};
   const rename=el('button','이름 변경');rename.onclick=()=>{
    const next=prompt('즐겨찾기 이름',trip.title||'저장된 구간');
    if(next===null)return;
@@ -820,6 +821,7 @@ function showSmartResults(ranked,partial){
 }
 let searchMode='manual';
 function setSearchMode(mode){
+ const previous=searchMode;
  searchMode=mode==='smart'?'smart':'manual';
  $('smartPanel').hidden=searchMode!=='smart';
  $('manualPanel').hidden=searchMode!=='manual';
@@ -827,6 +829,10 @@ function setSearchMode(mode){
   b.classList.toggle('active',b.dataset.searchMode===searchMode);
   b.setAttribute('aria-pressed',String(b.dataset.searchMode===searchMode))
  }
+ const visible=tab==='search'&&searchMode==='manual';
+ $('heading').hidden=!visible;$('status').hidden=!visible;
+ $('cards').hidden=!visible;$('refresh').hidden=!visible;
+ if(previous!==searchMode){revision++;resetView();if(visible&&otherTrip.ready)refresh()}
 }
 const smartToControl=stopSearchControl($('smartToResults'),stops=>{
  smartState.to=stops[0];smartState.toCandidates=stops;
@@ -840,6 +846,7 @@ smartToControl.input.addEventListener('input',()=>{
  smartStatus('목적지를 검색 결과에서 선택하세요.')
 });
 document.querySelectorAll('[data-search-mode]').forEach(b=>b.onclick=()=>setSearchMode(b.dataset.searchMode));
+setSearchMode('smart');
 $('smartRecommend').onclick=()=>{
  if(!smartState.to){smartStatus('목적지 정류장을 먼저 선택하세요.',true);return}
  if(!cfg.key){smartStatus('설정에서 API 인증키를 등록하세요.',true);return}
