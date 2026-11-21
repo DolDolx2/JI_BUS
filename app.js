@@ -370,6 +370,11 @@ $('build').onclick=async()=>{
 const otherFromHost=$('otherFromResults'),otherToHost=$('otherToResults');
 const fromControl=stopSearchControl(otherFromHost,stops=>{otherTrip.from=stops[0];otherTrip.fromCandidates=stops;otherTrip.ready=false;$('otherSelection').textContent='출발: '+stops[0].name+(otherTrip.to?' · 도착: '+otherTrip.to.name:'')});
 const toControl=stopSearchControl(otherToHost,stops=>{otherTrip.to=stops[0];otherTrip.toCandidates=stops;otherTrip.ready=false;$('otherSelection').textContent='출발: '+(otherTrip.from?.name||'미선택')+' · 도착: '+stops[0].name});
+for(const [which,control] of [['from',fromControl],['to',toControl]])control.input.addEventListener('input',()=>{
+ if(otherTrip[which]?.name===control.input.value.trim())return;
+ otherTrip[which]=null;otherTrip[which+'Candidates']=[];otherTrip.ready=false;revision++;resetView();
+ $('otherSelection').textContent='입력한 정류장을 검색 결과에서 선택하세요';
+});
 $('swapOther').onclick=()=>{const a=otherTrip.from,b=otherTrip.fromCandidates;otherTrip.from=otherTrip.to;otherTrip.fromCandidates=otherTrip.toCandidates;otherTrip.to=a;otherTrip.toCandidates=b;otherTrip.ready=false;fromControl.input.value=otherTrip.from?.name||'';toControl.input.value=otherTrip.to?.name||'';$('otherSelection').textContent='출발: '+(otherTrip.from?.name||'미선택')+' · 도착: '+(otherTrip.to?.name||'미선택')};
 $('findOther').onclick=async()=>{
  if(!otherTrip.from||!otherTrip.to){$('otherSelection').textContent='출발·도착 정류장을 모두 선택하세요';return}
