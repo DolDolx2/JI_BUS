@@ -1019,6 +1019,7 @@ async function loadCheongjuWeather(){
 }
 renderRecentTrips();
 loadCheongjuWeather();
+setInterval(()=>{if(!document.hidden)loadCheongjuWeather()},1200000);
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
 $('refresh').onclick=()=>{resetFailures();refresh()};
 setInterval(()=>{if(!document.hidden&&retryTimer===null&&!authBlocked)refresh()},15000);
