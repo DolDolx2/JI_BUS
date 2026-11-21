@@ -65,13 +65,49 @@ function groupStops(items){
  const groups=new Map();for(const s of items){const k=normStop(s.name);if(!groups.has(k))groups.set(k,{name:s.name,stops:[]});groups.get(k).stops.push(s)}
  return [...groups.values()]
 }
+function showStopSearchState(host,message,failed=false){
+ host.replaceChildren();
+ const line=el('p',message,failed?'error':'muted');
+ line.setAttribute('role','status');
+ line.setAttribute('aria-live','polite');
+ host.append(line);
+}
 function stopSearchControl(container,onChoose){
- const input=el('input'),results=el('div',undefined,'results');input.placeholder='정류장 이름 또는 일부 입력';input.setAttribute('aria-label','정류장 이름 검색');container.append(input,results);
+ const input=el('input'),results=el('div',undefined,'results');
+ input.placeholder='정류장 이름 또는 일부 입력';
+ input.setAttribute('aria-label','정류장 이름 검색');
+ container.append(input,results);
  let timer=0,serial=0;
- input.addEventListener('input',()=>{clearTimeout(timer);const token=++serial;results.replaceChildren();const q=input.value.trim();if(!q)return;timer=setTimeout(async()=>{try{const groups=groupStops(await findStops(q));if(token!==serial)return;
- for(const g of groups){const b=el('button',g.name+(g.stops.length>1?' · '+g.stops.length+'개 위치':''));b.type='button';b.onclick=()=>{onChoose(g.stops);input.value=g.name;results.replaceChildren()};results.append(b)}if(!groups.length)results.append(el('p','일치하는 정류장 없음 · 일부 명칭으로 다시 검색하세요','muted'))
- }catch(e){if(token===serial)results.append(el('p','검색 실패: '+e.message,'error'))}},300)});
- return {input,results};
+ input.addEventListener('input',()=>{
+  clearTimeout(timer);
+  const token=++serial,q=input.value.trim();
+  results.replaceChildren();
+  if(!q)return;
+  showStopSearchState(results,'정류장 검색 중… 잠시만 기다려 주세요.');
+  timer=setTimeout(async()=>{
+   try{
+    const groups=groupStops(await findStops(q));
+    if(token!==serial)return;
+    results.replaceChildren();
+    for(const g of groups){
+     const b=el('button',g.name+(g.stops.length>1?' · '+g.stops.length+'개 위치':''));
+     b.type='button';
+     b.onclick=()=>{
+      ++serial;
+      clearTimeout(timer);
+      onChoose(g.stops);
+      input.value=g.name;
+      results.replaceChildren()
+     };
+     results.append(b)
+    }
+    if(!groups.length)showStopSearchState(results,'검색 결과가 없습니다. 다른 정류장 이름으로 검색해 주세요.');
+   }catch(e){
+    if(token===serial)showStopSearchState(results,'정류장 검색 실패 · '+e.message,true)
+   }
+  },300)
+ });
+ return {input,results}
 }
 
 function showSaved(){
@@ -84,6 +120,39 @@ let extraHomeStops=[]; const transferCache=new Map();
 const otherTrip={from:null,to:null,routes:[],ready:false};
 function homeCandidates(){let m=new Map([...cfg.favorites,...extraHomeStops].filter(s=>s.id!==cfg.stops.home?.id).map(s=>[s.id,s]));for(const r of cfg.routes)for(let j=0;j<r.stops.length;j++)if(r.stops[j].id===cfg.stops.home?.id)for(let i=0;i<j;i++)if(r.stops[i].id!==cfg.stops.home.id)m.set(r.stops[i].id,r.stops[i]);return [...m.values()]}
 function populateHome(order){let list=order||homeCandidates().sort((a,b)=>Number(cfg.favorites.some(x=>x.id===b.id))-Number(cfg.favorites.some(x=>x.id===a.id))||a.name.localeCompare(b.name,'ko'));$('homeStop').replaceChildren(new Option('탑승 정류장 선택',''),...list.map(s=>new Option(name(s)+(s.distance!=null?' · '+Math.round(s.distance)+'m':''),s.id)));$('homeStop').value=cfg.last}
+// Build 11: keep the physical travel order of each direction separate.
+function routeVariants(id,no,raw){
+ const rows=raw.map((x,index)=>({...node(x),order:Number(x.nodeord),direction:x.updowncd==null&&x.updowncode==null?'':String(x.updowncd??x.updowncode),sourceIndex:index})).filter(x=>x.id&&Number.isFinite(x.order));
+ const directions=[...new Set(rows.map(x=>x.direction).filter(x=>x!==''))];
+ let groups=[];
+ if(directions.length>1&&rows.every(x=>x.direction!=='')){
+  groups=directions.map(direction=>rows.filter(x=>x.direction===direction));
+ }else{
+  // Some cities omit updowncd and restart nodeord at the turn-around.
+  // Only split at a clearly decreasing sequence; never guess a direction from names.
+  let current=[];
+  for(const x of rows){
+   if(current.length&&x.order<current[current.length-1].order){groups.push(current);current=[]}
+   current.push(x);
+  }
+  if(current.length)groups.push(current);
+ }
+ const knownDirections=groups.length>1&&directions.length>1;
+ const appearances=new Map();
+ if(groups.length>1)for(const group of groups)for(const x of group){
+  const key=x.id+'|'+x.order;
+  appearances.set(key,(appearances.get(key)||0)+1);
+ }
+ return groups.filter(g=>g.length).map((group,index)=>({
+  id:String(id),no:String(no),direction:knownDirections?group[0].direction:'',
+  segment:groups.length>1?String(index):'',
+  stops:[...group].sort((a,b)=>a.order-b.order||a.sourceIndex-b.sourceIndex).map(x=>({
+   id:x.id,name:x.name,no:x.no,lat:x.lat,lon:x.lon,order:x.order,
+   ambiguousDirection:groups.length>1&&(appearances.get(x.id+'|'+x.order)||0)>1
+  }))
+ }));
+}
+function directionLabel(r){return r.direction==='0'?'상행':r.direction==='1'?'하행':r.segment!==''&&r.segment!=null?'운행 구간 '+(Number(r.segment)+1):''}
 function selectedMatches(s,target){
  if(!s||!target)return false;if(s.id===target.id)return true;if(normStop(s.name)!==normStop(target.name))return false;
  const ll=[s.lat,s.lon,target.lat,target.lon];if(ll.every(x=>Number.isFinite(x)&&x!==0)){
@@ -102,12 +171,24 @@ function routesFor(){let out=[];for(const r of (tab==='other'?otherTrip.routes:c
 function switchTab(t){clearRetry();retryCount=0;tab=t;revision++;document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));$('settings').hidden=t!=='settings';$('homePanel').hidden=t!=='home';$('otherPanel').hidden=t!=='other';$('heading').hidden=t==='settings';resetView();$('heading').dataset.heading='';if(t==='settings'){showSaved();status('')}else{if(t==='home')populateHome();if(t==='other'&&!otherTrip.ready){$('heading').replaceChildren(el('h2','기타 경로 검색'),el('p','출발·도착 정류장 선택 후 노선 찾기','muted'));status('');return}refresh()}}
 // Build 08: persistent, keyed cards and vehicle markers.
 let lastGood=0, viewRevision=-1, autoOpened=false;
-const routeKey=r=>r.id+':'+r.i+':'+r.j;
+const routeKey=r=>r.id+':'+(r.segment??'')+':'+(r.direction??'')+':'+r.i+':'+r.j;
 const liveCards=new Map();
 const locationCache=new Map();
 const routeInfoCache=new Map();
 function resetView(){liveCards.clear();locationCache.clear();lastGood=0;autoOpened=false;viewRevision=revision;$('cards').replaceChildren()}
-function vehicleIndex(r,v){const matches=r.stops.map((s,i)=>s.id===String(v.nodeid)?i:-1).filter(i=>i>=0);const exact=matches.find(i=>r.stops[i].order===Number(v.nodeord));return exact!==undefined?exact:matches.length===1?matches[0]:-1}
+function vehicleIndex(r,v){
+ const direction=v.updowncd??v.updowncode;
+ if(r.direction!==''&&r.direction!=null&&direction!=null&&String(direction)!==r.direction)return -1;
+ const id=String(v.nodeid??v.nodeId??''),order=v.nodeord==null?NaN:Number(v.nodeord);
+ const matches=r.stops.map((stop,i)=>stop.id===id?i:-1).filter(i=>i>=0);
+ if(!matches.length)return -1;
+ const exact=Number.isFinite(order)?matches.filter(i=>r.stops[i].order===order):matches;
+ if(exact.length!==1)return -1;
+ // If two direction segments have the same nodeid/nodeord, the vehicle
+ // must also supply a direction code. Otherwise its direction is unknown.
+ if(r.stops[exact[0]].ambiguousDirection&&direction==null)return -1;
+ return exact[0]
+}
 function etaLabel(s){s=Math.max(0,Math.ceil(s));return s===0?'도착 예정':s<=120?Math.floor(s/60)+'분 '+String(s%60).padStart(2,'0')+'초':Math.ceil(s/60)+'분 후'}
 function setEta(e,seconds,at=Date.now()){
  if(seconds==null||!Number.isFinite(Number(seconds))||Number(seconds)<0){delete e.dataset.eta;e.textContent='도착정보 없음';e.classList.remove('urgent');return}
@@ -142,7 +223,7 @@ function layoutTimeline(t,rebuild=false){
   let suffix=role==='transfer'?' · 환승':i===r.i?' · 승차':i===r.j?' · 하차':role==='current'?' · 현재':'';
   const text=r.stops[i].name+suffix;if(cell.label.textContent!==text)cell.label.textContent=text
  }
- let info=primary?'최근 확인 위치 · '+r.stops[primary.i].name+' · '+(r.i-primary.i)+'정류장 전':'탑승 방향 차량 위치 미확인';
+ let info=primary?'최근 확인 위치 · '+r.stops[primary.i].name+' · '+(r.i-primary.i)+'정류장 전':'탑승 방향 차량 위치 미확인 · 다른 방향 차량은 제외';
  if(primary&&primary.i<start)info+=' (표시 범위 밖)';
  if(t.error)info+=' · 위치 지연';
  if(t.info.textContent!==info)t.info.textContent=info;
@@ -201,7 +282,7 @@ function directCard(r,a,location,first,at,info){
  const key='direct:'+routeKey(r),o=ensureCard(key,r.no),av=arrivalsFor(a,r.id),v=av[0];
  textTo(o.path,r.stops[r.i].name+' → '+r.stops[r.j].name);
  textTo(o.meta,v?'남은 정류장 '+(v.arrprevstationcnt??'미제공')+' · 다음 차량 '+(av[1]?Math.ceil(Number(av[1].arrtime)/60)+'분 후':'정보 없음'):'현재 도착 예정 차량 없음');textTo(o.schedule,v?'':operatingText(info));
- textTo(o.flag,(first&&v?'가장 먼저 도착 · ':'')+(tab==='work'&&selectedMatches(r.stops[r.j],cfg.stops.alt)?'대체 경로 · 도보':'기본 경로'));
+ textTo(o.flag,(directionLabel(r)?directionLabel(r)+' · ':'')+(first&&v?'가장 먼저 도착 · ':'')+(tab==='work'&&selectedMatches(r.stops[r.j],cfg.stops.alt)?'대체 경로 · 도보':'기본 경로'));
  setEta(o.eta,v?.arrtime,at);
  if(!o.timeline){o.timeline=makeTimeline(r);o.details.append(o.timeline.wrap)}
  updateTimeline(o.timeline,r,location.v,location.e||'');
@@ -221,7 +302,7 @@ function transferPaths(firstRoutes,lastRoutes,origin,dest){
  const found=new Map();
  for(const r of firstRoutes)for(let i=0;i<r.stops.length;i++)if(isSource(r.stops[i]))for(let j=i+1;j<r.stops.length;j++){
   let id=r.stops[j].id;if(isDest(r.stops[j]))break;
-  for(const second of byStop.get(id)||[]){if(second.id===r.id)continue;let first={...r,i,j},count=j-i+second.j-second.i,key=r.id+'|'+second.id+'|'+id;
+  for(const second of byStop.get(id)||[]){if(second.id===r.id)continue;let first={...r,i,j},count=j-i+second.j-second.i,key=r.id+'|'+(r.segment??'')+'|'+second.id+'|'+(second.segment??'')+'|'+id;
    if(!found.has(key)||found.get(key).count>count)found.set(key,{first,second,count,stop:r.stops[j],key})
   }
  }
@@ -232,7 +313,7 @@ async function loadFirstRoutes(origin){
  const rows=await api('stop','getSttnThrghRouteList',{nodeid:origin}), ids=new Map();
  for(const x of rows)if(x.routeid)ids.set(String(x.routeid),String(x.routeno));
  let routes=[];
- for(const [id,no] of ids){let r=cfg.routes.find(r=>r.id===id);if(!r){let stops=(await api('route','getRouteAcctoThrghSttnList',{routeId:id})).map(x=>({...node(x),order:Number(x.nodeord)})).filter(x=>x.id&&Number.isFinite(x.order)).sort((a,b)=>a.order-b.order);r={id,no,stops}}if(r.stops.length)routes.push(r)}
+ for(const [id,no] of ids){let r=cfg.routes.filter(r=>r.id===id);if(!r.length){r=routeVariants(id,no,await api('route','getRouteAcctoThrghSttnList',{routeId:id}))}for(const variant of (Array.isArray(r)?r:[r]))if(variant.stops.length)routes.push(variant)}
  transferCache.set(origin,{time:Date.now(),routes});return routes;
 }
 const arrivalsFor=(rows,id)=>rows.filter(x=>String(x.routeid)===id&&x.arrtime!=null&&Number.isFinite(Number(x.arrtime))&&Number(x.arrtime)>=0).sort((a,b)=>Number(a.arrtime)-Number(b.arrtime));
@@ -244,7 +325,7 @@ async function showTransfers(origin,arrivalRows,rev,at){
  const paths=tab==='other'?transferPaths(otherTrip.routes,otherTrip.routes,otherTrip.from,otherTrip.to):transferPaths(firstRoutes,cfg.routes,homeStart||origin,cfg.stops.home);
  const score=p=>Number(arrivalsFor(arrivalRows,p.first.id)[0]?.arrtime??Infinity);
  paths.sort((a,b)=>Number.isFinite(score(a))!==Number.isFinite(score(b))?(Number.isFinite(score(a))?-1:1):(score(a)-score(b)||a.count-b.count));
- const seen=new Set(),top=[];for(const p of paths){let k=p.first.id+'|'+p.second.id;if(seen.has(k))continue;seen.add(k);top.push(p);if(top.length===3)break}
+ const seen=new Set(),top=[];for(const p of paths){let k=p.first.id+'|'+(p.first.segment??'')+'|'+p.second.id+'|'+(p.second.segment??'');if(seen.has(k))continue;seen.add(k);top.push(p);if(top.length===3)break}
  const ats=new Map(),firstAts=new Map(),loc=new Map();
  for(const p of top){
   const boardId=p.first.stops[p.first.i].id;
@@ -262,7 +343,7 @@ async function showTransfers(origin,arrivalRows,rev,at){
   setEta(o.eta,arrivalsFor(first.rows,p.first.id)[0]?.arrtime,first.at);
   textTo(o.summary,'두 차량 위치 · 현재 기준');
   if(!o.legs.length){for(let i=0;i<2;i++){const d=el('details'),s=el('summary'),v=el('span',undefined,'legEta'),t=makeTimeline(i?p.second:p.first);d.append(s,v,t.wrap);o.details.append(d);o.legs.push({d,s,v,t})}}
-  for(const [i,r] of [p.first,p.second].entries()){const leg=o.legs[i],l=loc.get(r.id);textTo(leg.s,(i+1)+'구간 · '+r.no+'번 · '+r.stops[r.i].name+' 승차');
+  for(const [i,r] of [p.first,p.second].entries()){const leg=o.legs[i],l=loc.get(r.id);textTo(leg.s,(i+1)+'구간 · '+r.no+'번'+(directionLabel(r)?' · '+directionLabel(r):'')+' · '+r.stops[r.i].name+' 승차');
    setEta(leg.v,i?arrivalsFor(second.rows,r.id)[0]?.arrtime:arrivalsFor(first.rows,r.id)[0]?.arrtime,i?second.at:first.at);
    if(i&&second.error){leg.v.textContent='환승 도착정보 조회 실패';delete leg.v.dataset.eta}
    updateTimeline(leg.t,r,l.v,l.e||'',i?'second':'first')
@@ -331,10 +412,36 @@ $('saveKey').onclick=async()=>{
  }catch(e){keyMessage('처리 실패 또는 연결 미확인: '+(['TimeoutError','AbortError'].includes(e.name)?'응답 시간 초과':e.message)+'. 활용 승인 및 인증키를 확인하세요.',true)}
  finally{btn.disabled=false;btn.textContent='인증키 저장 및 확인'}
 };
-$('search').onclick=async()=>{let q=$('query').value.trim();if(!q){status('정류장 이름을 입력하세요.',true);return}try{status('정류장 검색 중…');let groups=groupStops(await findStops(q));$('searchResults').replaceChildren();
- for(const g of groups){const b=el('button',g.name+(g.stops.length>1?' · '+g.stops.length+'개 후보':''));b.onclick=()=>{let t=$('target').value;if(t==='favorite'){for(const s of g.stops)if(!cfg.favorites.some(x=>x.id===s.id))cfg.favorites.push(s)}else{cfg.stops[t]=g.stops[0];cfg.routes=[];delete cfg.routesBuiltAt;cfg.last='';$('routeReport').replaceChildren()}save();showSaved();status('정류장 저장 · '+g.name+(g.stops.length>1?' (방향은 노선 구성에서 자동 판단 예정)':''))};$('searchResults').append(b)}
- status(groups.length+'개 정류장 이름 검색 결과')}catch(e){status(e.message,true)}
+let settingsSearchSerial=0;
+$('query').addEventListener('input',()=>{settingsSearchSerial++;$('searchResults').replaceChildren()});
+$('search').onclick=async()=>{
+ const q=$('query').value.trim();
+ if(!q){status('정류장 이름을 입력하세요.',true);return}
+ const token=++settingsSearchSerial,button=$('search');
+ button.disabled=true;
+ showStopSearchState($('searchResults'),'정류장 검색 중… 잠시만 기다려 주세요.');
+ status('정류장 검색 중…');
+ try{
+  const groups=groupStops(await findStops(q));
+  if(token!==settingsSearchSerial)return;
+  $('searchResults').replaceChildren();
+  for(const g of groups){
+   const b=el('button',g.name+(g.stops.length>1?' · '+g.stops.length+'개 후보':''));
+   b.onclick=()=>{
+    let t=$('target').value;
+    if(t==='favorite'){for(const item of g.stops)if(!cfg.favorites.some(x=>x.id===item.id))cfg.favorites.push(item)}
+    else{cfg.stops[t]=g.stops[0];cfg.routes=[];delete cfg.routesBuiltAt;cfg.last='';$('routeReport').replaceChildren()}
+    save();showSaved();status('정류장 저장 · '+g.name+(g.stops.length>1?' (방향은 노선 구성에서 자동 판단 예정)':''))
+   };
+   $('searchResults').append(b)
+  }
+  if(!groups.length)showStopSearchState($('searchResults'),'검색 결과가 없습니다. 다른 정류장 이름으로 검색해 주세요.');
+  status(groups.length+'개 정류장 이름 검색 결과')
+ }catch(e){
+  if(token===settingsSearchSerial){showStopSearchState($('searchResults'),'정류장 검색 실패 · '+e.message,true);status(e.message,true)}
+ }finally{button.disabled=false}
 };
+
 function routeReport(routes,notes=[]){
  const out=el('div',undefined,'routeResult');
  const work=routes.filter(r=>[cfg.stops.exit,cfg.stops.alt].filter(Boolean).some(b=>stopPairs(r.stops,cfg.stops.board,b).length));
@@ -365,7 +472,7 @@ $('build').onclick=async()=>{
  let candidates=[selected];try{candidates=await expandDirectionalStops(selected);if(!candidates.length)candidates=[selected]}catch(e){notes.push(selected.name+' 후보 조회 오류 · '+e.message)}
  for(const s of candidates){try{let items=await api('stop','getSttnThrghRouteList',{nodeid:s.id});for(const x of items)if(x.routeid)ids.set(String(x.routeid),String(x.routeno))}catch(e){notes.push(s.name+' · '+e.message)}}
  }
- for(const [id,no] of ids){status('노선 구성 중 · '+no);try{let stops=(await api('route','getRouteAcctoThrghSttnList',{routeId:id})).map(x=>({...node(x),order:Number(x.nodeord)})).filter(x=>x.id&&Number.isFinite(x.order)).sort((a,b)=>a.order-b.order);if(stops.length)routes.push({id,no,stops});else notes.push(no+' · 경유 정류장 0건')}catch(e){notes.push(no+' · '+e.message)}}
+ for(const [id,no] of ids){status('노선 구성 중 · '+no);try{const variants=routeVariants(id,no,await api('route','getRouteAcctoThrghSttnList',{routeId:id}));if(variants.length)routes.push(...variants);else notes.push(no+' · 경유 정류장 0건')}catch(e){notes.push(no+' · '+e.message)}}
  if(notes.length){routeReport(routes,notes);status('',false);return}
  cfg.routes=routes;cfg.routesBuiltAt=Date.now();transferCache.clear();save();routeReport(routes);status('',false);
  }catch(e){status('',false);routeReport(routes,[...notes,e.message])}finally{btn.disabled=false}
@@ -390,9 +497,9 @@ $('findOther').onclick=async()=>{
   const candidates=[...candidatesMap.values()];
   for(const s of candidates){const items=await api('stop','getSttnThrghRouteList',{nodeid:s.id});for(const x of items)if(x.routeid)ids.set(String(x.routeid),String(x.routeno))}
   const results=[];
-  for(const [id,no] of ids){let r=cfg.routes.find(x=>x.id===id);if(!r)r=otherTrip.routes.find(x=>x.id===id);
-   if(!r){let stops=(await api('route','getRouteAcctoThrghSttnList',{routeId:id})).map(x=>({...node(x),order:Number(x.nodeord)})).filter(x=>x.id&&Number.isFinite(x.order)).sort((a,b)=>a.order-b.order);r={id,no,stops}}
-   if(r.stops.length)results.push(r)
+  for(const [id,no] of ids){let r=cfg.routes.filter(x=>x.id===id);if(!r.length)r=otherTrip.routes.filter(x=>x.id===id);
+   if(!r.length)r=routeVariants(id,no,await api('route','getRouteAcctoThrghSttnList',{routeId:id}));
+   for(const variant of r)if(variant.stops.length)results.push(variant)
   }
   otherTrip.routes=results;otherTrip.ready=true;revision++;$('otherSelection').textContent='노선 '+results.length+'개 분석 · 실시간 도착 및 환승 검색';refresh();
  }catch(e){$('otherSelection').textContent='경로 검색 실패: '+e.message;recordError(e,'기타 검색')}
@@ -401,9 +508,37 @@ $('findOther').onclick=async()=>{
 
 const homeQuery=el('input'),homeSearch=el('button','정류장 검색'),homeSearchList=el('div',undefined,'results');
 homeQuery.placeholder='직행·환승 탑승 정류장 검색';$('homeStop').after(homeQuery,homeSearch,homeSearchList);
-homeSearch.onclick=async()=>{const q=homeQuery.value.trim();if(!q)return;homeSearch.disabled=true;try{const groups=groupStops((await findStops(q)).filter(s=>s.id&&s.id!==cfg.stops.home?.id));homeSearchList.replaceChildren();
- for(const g of groups){let b=el('button',g.name+(g.stops.length>1?' · 방향 자동 판별':''));b.onclick=()=>{for(const s of g.stops)if(!cfg.favorites.some(x=>x.id===s.id))cfg.favorites.push(s);cfg.last=g.stops[0].id;save();revision++;populateHome();homeSearchList.replaceChildren();refresh()};homeSearchList.append(b)}
- $('gpsInfo').textContent=groups.length+'개 검색 결과 · 선택 시 즐겨찾기 저장'}catch(e){$('gpsInfo').textContent='정류장 검색 실패: '+e.message}finally{homeSearch.disabled=false}};
+let homeSearchSerial=0;
+homeQuery.addEventListener('input',()=>{homeSearchSerial++;homeSearchList.replaceChildren()});
+homeSearch.onclick=async()=>{
+ const q=homeQuery.value.trim();
+ if(!q){showStopSearchState(homeSearchList,'정류장 이름을 입력해 주세요.');return}
+ const token=++homeSearchSerial;
+ homeSearch.disabled=true;
+ showStopSearchState(homeSearchList,'정류장 검색 중… 잠시만 기다려 주세요.');
+ try{
+  const groups=groupStops((await findStops(q)).filter(s=>s.id&&s.id!==cfg.stops.home?.id));
+  if(token!==homeSearchSerial)return;
+  homeSearchList.replaceChildren();
+  for(const g of groups){
+   const b=el('button',g.name+(g.stops.length>1?' · 방향 자동 판별':''));
+   b.onclick=()=>{
+    for(const item of g.stops)if(!cfg.favorites.some(x=>x.id===item.id))cfg.favorites.push(item);
+    cfg.last=g.stops[0].id;
+    save();revision++;populateHome();homeSearchList.replaceChildren();refresh()
+   };
+   homeSearchList.append(b)
+  }
+  if(!groups.length)showStopSearchState(homeSearchList,'검색 결과가 없습니다. 다른 정류장 이름으로 검색해 주세요.');
+  $('gpsInfo').textContent=groups.length+'개 검색 결과 · 선택 시 즐겨찾기 저장'
+ }catch(e){
+  if(token===homeSearchSerial){
+   showStopSearchState(homeSearchList,'정류장 검색 실패 · '+e.message,true);
+   $('gpsInfo').textContent='정류장 검색 실패'
+  }
+ }finally{homeSearch.disabled=false}
+};
+
 $('homeStop').onchange=()=>{cfg.last=$('homeStop').value;save();revision++;refresh()};
 $('gps').onclick=()=>{if(!navigator.geolocation){$('gpsInfo').textContent='GPS 미지원';return}navigator.geolocation.getCurrentPosition(p=>{let rad=x=>x*Math.PI/180,lat=p.coords.latitude,lon=p.coords.longitude;let list=homeCandidates().filter(s=>Number.isFinite(s.lat)&&Number.isFinite(s.lon)&&s.lat!==0&&s.lon!==0).map(s=>{let h=Math.sin(rad(s.lat-lat)/2)**2+Math.cos(rad(lat))*Math.cos(rad(s.lat))*Math.sin(rad(s.lon-lon)/2)**2;return {...s,distance:6371000*2*Math.asin(Math.sqrt(Math.min(1,h)))}}).sort((a,b)=>a.distance-b.distance);populateHome(list);$('gpsInfo').textContent=list.length?'직선거리 기준 · 가까운 정류장부터 표시':'좌표 정보 없음 · 직접 선택';if(!list.length)populateHome()},e=>{$('gpsInfo').textContent='위치 확인 실패 · 직접 선택 가능'},{enableHighAccuracy:true,timeout:12000})};
 // Theme is independent of the existing settings schema and backup.
