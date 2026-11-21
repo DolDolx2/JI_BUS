@@ -15,8 +15,8 @@ const code=[
  part('const arrivalsFor=','function etaText'),
  part('function smartScore','function smartStatus')
 ].join('\n');
-const {smartScore,smartCandidates,rankSmartCandidates}=
- new Function(code+';return {smartScore,smartCandidates,rankSmartCandidates}')();
+const {smartScore,smartCandidates,rankSmartCandidates,smartArrivalsFor}=
+ new Function(code+';return {smartScore,smartCandidates,rankSmartCandidates,smartArrivalsFor}')();
 const stop=(id,name)=>({id,name,lat:NaN,lon:NaN});
 const r1={id:'R1',no:'717',segment:'0',stops:[
  stop('a','출발 A'),stop('b','중간 B'),stop('z','목적지')]};
@@ -47,7 +47,16 @@ assert.equal(ranked[0].route.id,'R2');
 assert.equal(ranked[0].estimate,14);
 assert.equal(ranked[1].arrivalSeconds,780); // earliest catchable, not the missed 180s bus
 assert.equal(ranked[1].estimate,17);
+// Arrival-time records from the opposite direction must never outrank the correct bus.
+const directionRows=[
+ {routeid:'R1',arrtime:60,updowncd:1},
+ {routeid:'R1',arrtime:480,updowncd:0},
+ {routeid:'R1',arrtime:720}
+];
+assert.equal(smartArrivalsFor(directionRows,{id:'R1',direction:'0'}).length,1);
+assert.equal(smartArrivalsFor(directionRows,{id:'R1',direction:'0'})[0].arrtime,480);
+assert.equal(smartArrivalsFor([{routeid:'R1',arrtime:100}],{id:'R1',direction:'1'}).length,0);
 const noLive=rankSmartCandidates(found,new Map());
 assert.equal(noLive[0].estimate,null);
 assert.equal(noLive[0].route.id,'R2'); // nearest stop first if no live data
-console.log('JI BUS V1.2 smart recommendation tests PASS (17 assertions)');
+console.log('JI BUS V1.2 smart recommendation tests PASS (20 assertions)');
