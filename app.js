@@ -182,6 +182,7 @@ function switchTab(next){
  $('settings').hidden=next!=='settings';
  $('searchPanel').hidden=next!=='search';
  $('favoritesPanel').hidden=next!=='favorites';
+ $('recentPanel').hidden=next!=='search';
  const showManual=next==='search'&&searchMode==='manual';
  $('heading').hidden=!showManual;
  $('status').hidden=!showManual;
@@ -1011,7 +1012,7 @@ async function loadCheongjuWeather(){
   const url='https://api.open-meteo.com/v1/forecast?latitude=36.6424&longitude=127.4890&current=temperature_2m,weather_code&timezone=Asia%2FSeoul';
   const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);
   const data=await res.json(),temp=Number(data?.current?.temperature_2m),code=Number(data?.current?.weather_code);
-  if(!Number.isFinite(temp)||!Number.isFinite(code))throw Error('현재 날씨 데이터 없음');
+  if(data?.current?.temperature_2m==null||data?.current?.weather_code==null||!Number.isFinite(temp)||!Number.isFinite(code))throw Error('현재 날씨 데이터 없음');
   const label='청주시 '+Math.round(temp)+'°C · '+weatherDescription(code);
   weatherCache.at=Date.now();weatherCache.text=label;host.textContent=label
  }catch(error){host.textContent='청주시 날씨 조회 불가';recordError(error,'날씨 정보')}
