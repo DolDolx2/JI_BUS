@@ -1,13 +1,13 @@
-// JI BUS V1.3 Build 05 — dashboard redesign contract checks.
+// JI BUS V1.3 Build 06 — dashboard redesign contract checks.
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
 const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 const version=JSON.parse(fs.readFileSync(path.join(__dirname,'..','version.json'),'utf8'));
-assert.equal(version.build,'20261121.1305');
-assert.equal(version.label,'Build 05');
-assert.match(html,/V1\.3 · 청주 실시간 버스 · Build 05/);
+assert.equal(version.build,'20261121.1306');
+assert.equal(version.label,'Build 06');
+assert.match(html,/V1\.3 · 청주 실시간 버스 · Build 06/);
 assert.match(html,/id="dashboardPanel"/);
 assert.match(html,/data-tab="home"/);
 assert.match(html,/id="clockNow"/);
@@ -24,7 +24,7 @@ assert.doesNotMatch(html,/id="weatherStrip"/);
 assert.doesNotMatch(html,/data-quick="map"/);
 assert.match(html,/class="introIllustration" src="assets\/cheongju-splash-city\.webp"/);
 assert.match(html,/id="introEnter"/);
-assert.match(html,/setTimeout\(enter,3000\)/);
+assert.match(html,/setTimeout\(enter,5000\)/);
 assert.match(html,/청주시 시내버스 실시간 안내/);
 assert.match(app,/\$\('dashboardPanel'\)\.hidden=next!=='home'/);
 assert.match(app,/switchTab\(cfg\.key\?'home':'settings'\)/);
@@ -39,4 +39,4 @@ const allIds=[...html.matchAll(/id="([^"]+)"/g)].map(x=>x[1]);
 assert.equal(allIds.length,new Set(allIds).size,'duplicate DOM id');
 const missing=[...new Set([...app.matchAll(/\$\('([^']+)'\)/g)].map(x=>x[1]))].filter(id=>!allIds.includes(id));
 assert.deepEqual(missing,[]);
-console.log('JI BUS V1.3 Build 05 dashboard contract PASS (31 assertions)');
+console.log('JI BUS V1.3 Build 06 dashboard contract PASS (31 assertions)');

@@ -1,4 +1,4 @@
-// JI BUS V1.2 Build 05 — splash entry and animation smoke test.
+// JI BUS V1.2 Build 06 — splash entry and animation smoke test.
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -12,9 +12,9 @@ assert.match(html,/청주시 시내버스 실시간 안내/);
 assert.match(html,/src="assets\/cheongju-splash-city\.webp"/);
 assert.match(html,/alt="청주시 시내버스와 도시 풍경"/);
 assert.doesNotMatch(html,/<animateMotion\b/);
-assert.match(html,/3초 후 자동으로 이동합니다/);
-assert.match(html,/V1\.3 · 청주 실시간 버스 · Build 05/);
-assert.match(scripts[1],/const current='20261121\.1305'/);
+assert.match(html,/5초 후 자동으로 이동합니다/);
+assert.match(html,/V1\.3 · 청주 실시간 버스 · Build 06/);
+assert.match(scripts[1],/const current='20261121\.1306'/);
 const init=new Function('document','window','setTimeout','clearTimeout',scripts[0]);
 function fixture(reduced=false){
  const button={handlers:{},addEventListener(kind,fn){this.handlers[kind]=fn}};
@@ -30,7 +30,7 @@ function fixture(reduced=false){
  return {button,splash,timers,cancelled}
 }
 const tapped=fixture();
-assert.equal(tapped.timers[0].delay,3000);
+assert.equal(tapped.timers[0].delay,5000);
 tapped.button.handlers.click();
 assert.equal(tapped.splash.hidden,true);
 assert.equal(tapped.splash.removed,true);
@@ -41,6 +41,6 @@ const automatic=fixture();
 automatic.timers[0].fn();
 assert.equal(automatic.splash.removed,true);
 const accessible=fixture(true);
-assert.equal(accessible.timers[0].delay,3000);
+assert.equal(accessible.timers[0].delay,5000);
 assert.equal(accessible.splash.removed,false);
-console.log('JI BUS V1.2 Build 05 approved artwork splash smoke tests PASS');
+console.log('JI BUS V1.2 Build 06 approved artwork splash smoke tests PASS');
