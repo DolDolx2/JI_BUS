@@ -223,7 +223,7 @@ function layoutTimeline(t,rebuild=false){
   let suffix=role==='transfer'?' · 환승':i===r.i?' · 승차':i===r.j?' · 하차':role==='current'?' · 현재':'';
   const text=r.stops[i].name+suffix;if(cell.label.textContent!==text)cell.label.textContent=text
  }
- let info=primary?'최근 확인 위치 · +r.stops[primary.i].name+' · '+(r.i-primary.i)+'정류장 전':'탑승 방향 차량 위치 미확인 · 다른 방향 차량은 제외';
+ let info=primary?'최근 확인 위치 · '+r.stops[primary.i].name+' · '+(r.i-primary.i)+'정류장 전':'탑승 방향 차량 위치 미확인 · 다른 방향 차량은 제외';
  if(primary&&primary.i<start)info+=' (표시 범위 밖)';
  if(t.error)info+=' · 위치 지연';
  if(t.info.textContent!==info)t.info.textContent=info;
