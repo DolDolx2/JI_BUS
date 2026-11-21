@@ -176,7 +176,7 @@ function arrangeCards(keys){
  for(const key of keys){const o=liveCards.get(key);if(!o)continue;if(o.box!==cursor)parent.insertBefore(o.box,cursor);cursor=o.box.nextSibling}
  for(const [k,o] of liveCards)if(!keep.has(k)){o.box.remove();liveCards.delete(k)}
 }
-function timeLabel(raw){let x=String(raw??'').trim();if(/^\\d{3,4}$/.test(x)){x=x.padStart(4,'0');return x.slice(0,2)+':'+x.slice(2)}if(/^\\d{1,2}:\\d{2}$/.test(x))return x;return ''}
+function timeLabel(raw){let x=String(raw??'').trim();if(/^\d{3,4}$/.test(x)){x=x.padStart(4,'0');return x.slice(0,2)+':'+x.slice(2)}if(/^\d{1,2}:\d{2}$/.test(x))return x;return ''}
 function dailyInterval(info){
  const day=new Date().getDay(),value=day===0?info.intervalsuntime:day===6?info.intervalsattime:info.intervaltime;
  return Number(value)>0?String(value)+'분':''
