@@ -200,7 +200,7 @@ nav{gap:4px}nav button{padding:8px 2px;font-size:13px}
  try{
   if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){
    var animated=splash.querySelector('animateMotion');
-   if(animated)animated.remove()
+   if(animated){animated.remove();var bus=splash.querySelector('.introAnimatedBus');if(bus)bus.setAttribute('transform','translate(176 73)')}
   }
  }catch(error){}
 })();
