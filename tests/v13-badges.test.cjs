@@ -1,4 +1,4 @@
-// JI BUS V1.3 Build 04: boarding/transfer/alighting badge tests
+// JI BUS V1.3 Build 05: boarding/transfer/alighting badge tests
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const js=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
@@ -41,10 +41,10 @@ assert.match(js,/renderStopFlow\(smartPath,item\.board\.name,item\.exit\.name\)/
 assert.match(html,/\.stopBadge-board\{/);
 assert.match(html,/\.stopBadge-exit\{/);
 assert.match(html,/\.stopBadge-transfer\{/);
-assert.match(html,/class="introScene introIllustration"/);
-assert.match(html,/introSkyGradient/);
-assert.match(html,/introBusPaint/);
+assert.match(html,/class="introIllustration" src="assets\/cheongju-splash-city\.webp"/);
+assert.match(html,/alt="청주시 시내버스와 도시 풍경"/);
+assert.doesNotMatch(html,/class="introScene/);
 assert.doesNotMatch(html,/<animateMotion\b/);
-assert.match(html,/introStaticBus/);
+assert.match(html,/src="assets\/cheongju-splash-city\.webp"/);
 assert.match(html,/id="introEnter"/);
-console.log('JI BUS V1.3 Build 04 badge+illustration tests PASS (29 assertions)');
+console.log('JI BUS V1.3 Build 05 badge+illustration tests PASS (29 assertions)');
