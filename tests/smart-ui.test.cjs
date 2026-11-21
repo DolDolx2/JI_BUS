@@ -46,8 +46,10 @@ async function fetch(url){
 const navigator={geolocation:{getCurrentPosition:success=>success({coords:{latitude:36.64,longitude:127.49}})}};
 (async()=>{
  const app=new Function('document','localStorage','setInterval','fetch','navigator','prompt','alert','confirm',
+ 'URL','URLSearchParams','AbortController','setTimeout','clearTimeout',
  source+';return {smartToControl,otherTrip}')(
-  document,localStorage,()=>1,fetch,navigator,()=>null,()=>{},()=>true
+  document,localStorage,()=>1,fetch,navigator,()=>null,()=>{},()=>true,
+  URL,URLSearchParams,AbortController,setTimeout,clearTimeout
  );
  assert.equal(get('smartPanel').hidden,false);
  assert.equal(get('manualPanel').hidden,true);
