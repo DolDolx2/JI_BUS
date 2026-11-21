@@ -1,4 +1,4 @@
-// JI BUS V1.0 - pure routing tests. Run: node tests/logic.test.cjs
+// JI BUS V1.1 - pure routing tests. Run: node tests/logic.test.cjs
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -12,7 +12,7 @@ const section=(start,end)=>{
 const source=[
  section('const normStop','function localStops'),
  section('function selectedMatches','function routesFor'),
- section('function transferPaths','async function loadFirstRoutes'),
+ section('function transferPaths','const arrivalsFor'),
  section('function timeLabel','function directCard'),
  section('function etaLabel','function busIcon')
 ].join('\n');
