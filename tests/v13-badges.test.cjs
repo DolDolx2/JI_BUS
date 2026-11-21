@@ -1,4 +1,4 @@
-// JI BUS V1.3 Build 03: boarding/transfer/alighting badge tests
+// JI BUS V1.3 Build 04: boarding/transfer/alighting badge tests
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const js=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
@@ -44,6 +44,7 @@ assert.match(html,/\.stopBadge-transfer\{/);
 assert.match(html,/class="introScene introIllustration"/);
 assert.match(html,/introSkyGradient/);
 assert.match(html,/introBusPaint/);
-assert.match(html,/animateMotion dur="3s"/);
+assert.doesNotMatch(html,/<animateMotion\b/);
+assert.match(html,/introStaticBus/);
 assert.match(html,/id="introEnter"/);
-console.log('JI BUS V1.3 Build 03 badge+illustration tests PASS (29 assertions)');
+console.log('JI BUS V1.3 Build 04 badge+illustration tests PASS (29 assertions)');
