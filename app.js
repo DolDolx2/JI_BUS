@@ -65,13 +65,49 @@ function groupStops(items){
  const groups=new Map();for(const s of items){const k=normStop(s.name);if(!groups.has(k))groups.set(k,{name:s.name,stops:[]});groups.get(k).stops.push(s)}
  return [...groups.values()]
 }
+function showStopSearchState(host,message,failed=false){
+ host.replaceChildren();
+ const line=el('p',message,failed?'error':'muted');
+ line.setAttribute('role','status');
+ line.setAttribute('aria-live','polite');
+ host.append(line);
+}
 function stopSearchControl(container,onChoose){
- const input=el('input'),results=el('div',undefined,'results');input.placeholder='정류장 이름 또는 일부 입력';input.setAttribute('aria-label','정류장 이름 검색');container.append(input,results);
+ const input=el('input'),results=el('div',undefined,'results');
+ input.placeholder='정류장 이름 또는 일부 입력';
+ input.setAttribute('aria-label','정류장 이름 검색');
+ container.append(input,results);
  let timer=0,serial=0;
- input.addEventListener('input',()=>{clearTimeout(timer);const token=++serial;results.replaceChildren();const q=input.value.trim();if(!q)return;timer=setTimeout(async()=>{try{const groups=groupStops(await findStops(q));if(token!==serial)return;
- for(const g of groups){const b=el('button',g.name+(g.stops.length>1?' · '+g.stops.length+'개 위치':''));b.type='button';b.onclick=()=>{onChoose(g.stops);input.value=g.name;results.replaceChildren()};results.append(b)}if(!groups.length)results.append(el('p','일치하는 정류장 없음 · 일부 명칭으로 다시 검색하세요','muted'))
- }catch(e){if(token===serial)results.append(el('p','검색 실패: '+e.message,'error'))}},300)});
- return {input,results};
+ input.addEventListener('input',()=>{
+  clearTimeout(timer);
+  const token=++serial,q=input.value.trim();
+  results.replaceChildren();
+  if(!q)return;
+  showStopSearchState(results,'정류장 검색 중… 잠시만 기다려 주세요.');
+  timer=setTimeout(async()=>{
+   try{
+    const groups=groupStops(await findStops(q));
+    if(token!==serial)return;
+    results.replaceChildren();
+    for(const g of groups){
+     const b=el('button',g.name+(g.stops.length>1?' · '+g.stops.length+'개 위치':''));
+     b.type='button';
+     b.onclick=()=>{
+      ++serial;
+      clearTimeout(timer);
+      onChoose(g.stops);
+      input.value=g.name;
+      results.replaceChildren()
+     };
+     results.append(b)
+    }
+    if(!groups.length)showStopSearchState(results,'검색 결과가 없습니다. 다른 정류장 이름으로 검색해 주세요.');
+   }catch(e){
+    if(token===serial)showStopSearchState(results,'정류장 검색 실패 · '+e.message,true)
+   }
+  },300)
+ });
+ return {input,results}
 }
 
 function showSaved(){
@@ -376,10 +412,36 @@ $('saveKey').onclick=async()=>{
  }catch(e){keyMessage('처리 실패 또는 연결 미확인: '+(['TimeoutError','AbortError'].includes(e.name)?'응답 시간 초과':e.message)+'. 활용 승인 및 인증키를 확인하세요.',true)}
  finally{btn.disabled=false;btn.textContent='인증키 저장 및 확인'}
 };
-$('search').onclick=async()=>{let q=$('query').value.trim();if(!q){status('정류장 이름을 입력하세요.',true);return}try{status('정류장 검색 중…');let groups=groupStops(await findStops(q));$('searchResults').replaceChildren();
- for(const g of groups){const b=el('button',g.name+(g.stops.length>1?' · '+g.stops.length+'개 후보':''));b.onclick=()=>{let t=$('target').value;if(t==='favorite'){for(const s of g.stops)if(!cfg.favorites.some(x=>x.id===s.id))cfg.favorites.push(s)}else{cfg.stops[t]=g.stops[0];cfg.routes=[];delete cfg.routesBuiltAt;cfg.last='';$('routeReport').replaceChildren()}save();showSaved();status('정류장 저장 · '+g.name+(g.stops.length>1?' (방향은 노선 구성에서 자동 판단 예정)':''))};$('searchResults').append(b)}
- status(groups.length+'개 정류장 이름 검색 결과')}catch(e){status(e.message,true)}
+let settingsSearchSerial=0;
+$('query').addEventListener('input',()=>{settingsSearchSerial++;$('searchResults').replaceChildren()});
+$('search').onclick=async()=>{
+ const q=$('query').value.trim();
+ if(!q){status('정류장 이름을 입력하세요.',true);return}
+ const token=++settingsSearchSerial,button=$('search');
+ button.disabled=true;
+ showStopSearchState($('searchResults'),'정류장 검색 중… 잠시만 기다려 주세요.');
+ status('정류장 검색 중…');
+ try{
+  const groups=groupStops(await findStops(q));
+  if(token!==settingsSearchSerial)return;
+  $('searchResults').replaceChildren();
+  for(const g of groups){
+   const b=el('button',g.name+(g.stops.length>1?' · '+g.stops.length+'개 후보':''));
+   b.onclick=()=>{
+    let t=$('target').value;
+    if(t==='favorite'){for(const item of g.stops)if(!cfg.favorites.some(x=>x.id===item.id))cfg.favorites.push(item)}
+    else{cfg.stops[t]=g.stops[0];cfg.routes=[];delete cfg.routesBuiltAt;cfg.last='';$('routeReport').replaceChildren()}
+    save();showSaved();status('정류장 저장 · '+g.name+(g.stops.length>1?' (방향은 노선 구성에서 자동 판단 예정)':''))
+   };
+   $('searchResults').append(b)
+  }
+  if(!groups.length)showStopSearchState($('searchResults'),'검색 결과가 없습니다. 다른 정류장 이름으로 검색해 주세요.');
+  status(groups.length+'개 정류장 이름 검색 결과')
+ }catch(e){
+  if(token===settingsSearchSerial){showStopSearchState($('searchResults'),'정류장 검색 실패 · '+e.message,true);status(e.message,true)}
+ }finally{button.disabled=false}
 };
+
 function routeReport(routes,notes=[]){
  const out=el('div',undefined,'routeResult');
  const work=routes.filter(r=>[cfg.stops.exit,cfg.stops.alt].filter(Boolean).some(b=>stopPairs(r.stops,cfg.stops.board,b).length));
@@ -446,9 +508,37 @@ $('findOther').onclick=async()=>{
 
 const homeQuery=el('input'),homeSearch=el('button','정류장 검색'),homeSearchList=el('div',undefined,'results');
 homeQuery.placeholder='직행·환승 탑승 정류장 검색';$('homeStop').after(homeQuery,homeSearch,homeSearchList);
-homeSearch.onclick=async()=>{const q=homeQuery.value.trim();if(!q)return;homeSearch.disabled=true;try{const groups=groupStops((await findStops(q)).filter(s=>s.id&&s.id!==cfg.stops.home?.id));homeSearchList.replaceChildren();
- for(const g of groups){let b=el('button',g.name+(g.stops.length>1?' · 방향 자동 판별':''));b.onclick=()=>{for(const s of g.stops)if(!cfg.favorites.some(x=>x.id===s.id))cfg.favorites.push(s);cfg.last=g.stops[0].id;save();revision++;populateHome();homeSearchList.replaceChildren();refresh()};homeSearchList.append(b)}
- $('gpsInfo').textContent=groups.length+'개 검색 결과 · 선택 시 즐겨찾기 저장'}catch(e){$('gpsInfo').textContent='정류장 검색 실패: '+e.message}finally{homeSearch.disabled=false}};
+let homeSearchSerial=0;
+homeQuery.addEventListener('input',()=>{homeSearchSerial++;homeSearchList.replaceChildren()});
+homeSearch.onclick=async()=>{
+ const q=homeQuery.value.trim();
+ if(!q){showStopSearchState(homeSearchList,'정류장 이름을 입력해 주세요.');return}
+ const token=++homeSearchSerial;
+ homeSearch.disabled=true;
+ showStopSearchState(homeSearchList,'정류장 검색 중… 잠시만 기다려 주세요.');
+ try{
+  const groups=groupStops((await findStops(q)).filter(s=>s.id&&s.id!==cfg.stops.home?.id));
+  if(token!==homeSearchSerial)return;
+  homeSearchList.replaceChildren();
+  for(const g of groups){
+   const b=el('button',g.name+(g.stops.length>1?' · 방향 자동 판별':''));
+   b.onclick=()=>{
+    for(const item of g.stops)if(!cfg.favorites.some(x=>x.id===item.id))cfg.favorites.push(item);
+    cfg.last=g.stops[0].id;
+    save();revision++;populateHome();homeSearchList.replaceChildren();refresh()
+   };
+   homeSearchList.append(b)
+  }
+  if(!groups.length)showStopSearchState(homeSearchList,'검색 결과가 없습니다. 다른 정류장 이름으로 검색해 주세요.');
+  $('gpsInfo').textContent=groups.length+'개 검색 결과 · 선택 시 즐겨찾기 저장'
+ }catch(e){
+  if(token===homeSearchSerial){
+   showStopSearchState(homeSearchList,'정류장 검색 실패 · '+e.message,true);
+   $('gpsInfo').textContent='정류장 검색 실패'
+  }
+ }finally{homeSearch.disabled=false}
+};
+
 $('homeStop').onchange=()=>{cfg.last=$('homeStop').value;save();revision++;refresh()};
 $('gps').onclick=()=>{if(!navigator.geolocation){$('gpsInfo').textContent='GPS 미지원';return}navigator.geolocation.getCurrentPosition(p=>{let rad=x=>x*Math.PI/180,lat=p.coords.latitude,lon=p.coords.longitude;let list=homeCandidates().filter(s=>Number.isFinite(s.lat)&&Number.isFinite(s.lon)&&s.lat!==0&&s.lon!==0).map(s=>{let h=Math.sin(rad(s.lat-lat)/2)**2+Math.cos(rad(lat))*Math.cos(rad(s.lat))*Math.sin(rad(s.lon-lon)/2)**2;return {...s,distance:6371000*2*Math.asin(Math.sqrt(Math.min(1,h)))}}).sort((a,b)=>a.distance-b.distance);populateHome(list);$('gpsInfo').textContent=list.length?'직선거리 기준 · 가까운 정류장부터 표시':'좌표 정보 없음 · 직접 선택';if(!list.length)populateHome()},e=>{$('gpsInfo').textContent='위치 확인 실패 · 직접 선택 가능'},{enableHighAccuracy:true,timeout:12000})};
 // Theme is independent of the existing settings schema and backup.
