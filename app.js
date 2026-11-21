@@ -1024,9 +1024,12 @@ $('smartRecommend').onclick=()=>{
 };
 
 
-/* Cheongju city-center weather: 20-minute cache; no GPS tracking or API key needed.
-   Third-party Open-Meteo current conditions, not TAGO or KMA data. */
-const weatherCache={at:0,text:''};
+/* V1.3 Build 06 — current-location weather with safe Cheongju fallback.
+   GPS coordinates are ephemeral and never persisted to localStorage. */
+const weatherCache={at:0,text:'',lat:null,lon:null,source:''};
+const WEATHER_TTL=20*60*1000;
+const CHEONGJU_WEATHER={lat:36.6424,lon:127.4890};
+let weatherPending=null;
 function weatherDescription(code){
  if(code===0)return '맑음';
  if([1,2].includes(code))return '대체로 맑음';
@@ -1038,23 +1041,88 @@ function weatherDescription(code){
  if([95,96,99].includes(code))return '뇌우';
  return '정보 확인 중'
 }
+function usableWeatherPosition(position){
+ const lat=Number(position?.coords?.latitude),lon=Number(position?.coords?.longitude);
+ return position?.coords?.latitude!=null&&position?.coords?.longitude!=null
+  &&Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=-90&&lat<=90&&lon>=-180&&lon<=180
+}
+function weatherNearSamePlace(a,b){
+ if(a.lat==null||a.lon==null)return false;
+ // About one kilometer within Korea; coarse enough not to refresh on GPS drift.
+ const dlat=(a.lat-b.lat)*111000;
+ const dlon=(a.lon-b.lon)*111000*Math.cos(b.lat*Math.PI/180);
+ return Math.hypot(dlat,dlon)<1000
+}
+function weatherGeolocation(){
+ return new Promise(resolve=>{
+  if(!navigator.geolocation){resolve(null);return}
+  let finished=false;
+  const done=pos=>{if(!finished){finished=true;resolve(pos)}};
+  try{
+   navigator.geolocation.getCurrentPosition(
+    position=>done(usableWeatherPosition(position)?{
+     lat:Number(position.coords.latitude),lon:Number(position.coords.longitude)
+    }:null),
+    ()=>done(null),
+    {enableHighAccuracy:false,timeout:8000,maximumAge:600000}
+   )
+  }catch(error){done(null)}
+ })
+}
+function weatherRequestUrl(location){
+ const params=new URLSearchParams({
+  latitude:String(location.lat),longitude:String(location.lon),
+  current:'temperature_2m,weather_code',timezone:'auto'
+ });
+ return 'https://api.open-meteo.com/v1/forecast?'+params.toString()
+}
+async function fetchWeatherAt(location,label){
+ const response=await fetch(weatherRequestUrl(location),{cache:'no-store'});
+ if(!response.ok)throw Error('날씨 HTTP '+response.status);
+ const data=await response.json();
+ const value=data?.current?.temperature_2m,weather=data?.current?.weather_code;
+ const temp=Number(value),code=Number(weather);
+ if(value==null||weather==null||!Number.isFinite(temp)||!Number.isFinite(code))throw Error('현재 날씨 데이터 없음');
+ return label+' '+Math.round(temp)+'°C · '+weatherDescription(code)
+}
 async function loadCheongjuWeather(){
- const host=$('weatherNow');if(!host)return;
- if(weatherCache.text&&Date.now()-weatherCache.at<1200000){host.textContent=weatherCache.text;return}
- host.textContent='청주시 날씨 조회 중…';
- try{
-  const url='https://api.open-meteo.com/v1/forecast?latitude=36.6424&longitude=127.4890&current=temperature_2m,weather_code&timezone=Asia%2FSeoul';
-  const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);
-  const data=await res.json(),temp=Number(data?.current?.temperature_2m),code=Number(data?.current?.weather_code);
-  if(data?.current?.temperature_2m==null||data?.current?.weather_code==null||!Number.isFinite(temp)||!Number.isFinite(code))throw Error('현재 날씨 데이터 없음');
-  const label='청주시 '+Math.round(temp)+'°C · '+weatherDescription(code);
-  weatherCache.at=Date.now();weatherCache.text=label;host.textContent=label
- }catch(error){host.textContent='청주시 날씨 조회 불가';recordError(error,'날씨 정보')}
+ const host=$('weatherNow');
+ if(!host)return;
+ // One in-flight request only: weather does not delay route search or other UI.
+ if(weatherPending)return weatherPending;
+ weatherPending=(async()=>{
+  const gps=await weatherGeolocation();
+  const location=gps||CHEONGJU_WEATHER;
+  const source=gps?'현재 위치':'청주시 기준';
+  if(weatherCache.text&&weatherCache.source===source&&Date.now()-weatherCache.at<WEATHER_TTL
+   &&weatherNearSamePlace(weatherCache,location)){
+   host.textContent=weatherCache.text;return
+  }
+  if(!weatherCache.text)host.textContent='현재 날씨 조회 중…';
+  try{
+   const label=await fetchWeatherAt(location,source);
+   weatherCache.at=Date.now();weatherCache.text=label;
+   weatherCache.lat=location.lat;weatherCache.lon=location.lon;weatherCache.source=source;
+   host.textContent=label
+  }catch(error){
+   if(gps){
+    // A GPS lookup can fail independently of a city-center lookup.
+    try{
+     const fallback=await fetchWeatherAt(CHEONGJU_WEATHER,'청주시 기준');
+     weatherCache.at=Date.now();weatherCache.text=fallback;
+     weatherCache.lat=CHEONGJU_WEATHER.lat;weatherCache.lon=CHEONGJU_WEATHER.lon;
+     weatherCache.source='청주시 기준';host.textContent=fallback;
+     return
+    }catch(fallbackError){recordError(fallbackError,'날씨 정보')}
+   }
+   host.textContent='날씨 조회 불가';recordError(error,'날씨 정보')
+  }
+ })();
+ try{await weatherPending}finally{weatherPending=null}
 }
 renderRecentTrips();
 loadCheongjuWeather();
-setInterval(()=>{if(!document.hidden)loadCheongjuWeather()},1200000);
-
+setInterval(()=>{if(!document.hidden)loadCheongjuWeather()},WEATHER_TTL);
 /* Dashboard fast actions use the existing route controllers, never a separate router. */
 document.querySelectorAll('[data-quick]').forEach(b=>b.onclick=()=>{
  const target=b.dataset.quick;
