@@ -36,4 +36,4 @@ assert.equal(timeLabel('0535'),'05:35');
 assert.equal(etaLabel(120),'2분 00초');
 assert.equal(etaLabel(121),'3분 후');
 assert.match(operatingText({startvehicletime:'0535',endvehicletime:'2230'}),/다음 회차 출발시간 미확인/);
-console.log('JI BUS routing tests PASS (11 assertions)');
+console.log('JI BUS routing tests PASS (12 assertions)');
