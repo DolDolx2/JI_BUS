@@ -15,8 +15,8 @@ assert.doesNotMatch(html,/<animateMotion\b/);
 assert.match(html,/5초 후 자동으로 이동합니다/);
 assert.match(html,/V1\.4 · 청주 실시간 버스 · Build 03/);
 assert.match(scripts[1],/const current='20261122\.1403'/);
-assert.match(html,/<span id="introCountdown" aria-hidden="true">5<\\/span>/);
-assert.match(html,/#introCountdown\\{/);
+assert.match(html,/<span id="introCountdown" aria-hidden="true">5<\/span>/);
+assert.match(html,/#introCountdown\{/);
 const init=new Function('document','window','setTimeout','clearTimeout',scripts[0]);
 function fixture(){
  const button={handlers:{},addEventListener(kind,fn){this.handlers[kind]=fn}};
