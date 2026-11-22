@@ -784,7 +784,7 @@ nearbyButton.onclick=()=>{
   showStopSearchState(nearbyResults,message,true);nearbyButton.disabled=false;
   endSearchProgress(work)
  },{enableHighAccuracy:true,timeout:12000,maximumAge:60000})
-};
+}
 const toControl=stopSearchControl($('otherToResults'),stops=>{
  otherTrip.to=stops[0];otherTrip.toCandidates=stops;otherTrip.ready=false;otherTrip.routes=[];
  $('otherSelection').textContent=tripSummary();$('saveTrip').disabled=!(otherTrip.from&&otherTrip.to);
@@ -952,7 +952,7 @@ if(validStop(cfg.lastTrip?.from)&&validStop(cfg.lastTrip?.to)){
 
 /* V1.2 smart recommendation: GPS + destination based direct-route candidates.
    Estimates are explicitly heuristic, not a pedestrian route or travel ETA. */
-const smartState={to:null,toCandidates:[],results:[],request:0};
+const smartState={to:null,toCandidates:[],results:[],request:0,showAll:false};
 const smartRouteCache=new Map();
 async function smartRouteVariants(id,no){
  const cache=smartRouteCache.get(id);
@@ -1049,7 +1049,7 @@ function showSmartResults(ranked,partial){
  for(const item of [...promising,...others]){
   const key=item.route.id+'|'+item.board.id;
   if(keys.has(key))continue;keys.add(key);unique.push(item);
-  if(unique.length>=5)break
+  if(unique.length>=(smartState.showAll?5:1))break
  }
  const note=el('p','도보시간(직선거리 기준)과 버스 이동시간(정류장당 2분 가정)을 사용한 참고 순위입니다. 실제 도보 경로·총 소요시간과 다를 수 있습니다.','muted');
  host.append(note);
@@ -1082,7 +1082,8 @@ function showSmartResults(ranked,partial){
   };
   card.append(button);host.append(card)
  });
- if(partial)host.append(el('p','일부 정류장 도착정보를 확인하지 못해 추천 순위가 달라질 수 있습니다.','muted'))
+ if(partial)host.append(el('p','일부 정류장 도착정보를 확인하지 못해 추천 순위가 달라질 수 있습니다.','muted'));
+ moreSmartButton.hidden=smartState.showAll
 }
 let searchMode='manual';
 function setSearchMode(mode){
@@ -1100,26 +1101,34 @@ function setSearchMode(mode){
  if(previous!==searchMode){revision++;resetView();if(visible&&otherTrip.ready)refresh()}
 }
 const smartToControl=stopSearchControl($('smartToResults'),stops=>{
- smartState.to=stops[0];smartState.toCandidates=stops;
+ smartState.to=stops[0];smartState.toCandidates=stops;moreSmartButton.hidden=true;
  ++smartState.request;$('smartResults').replaceChildren();
  smartStatus('목적지: '+stops[0].name+' · 현재 위치 기준 추천을 실행하세요.')
 });
 smartToControl.input.addEventListener('input',()=>{
  if(smartToControl.input.value.trim()===smartState.to?.name)return;
- smartState.to=null;smartState.toCandidates=[];
+ smartState.to=null;smartState.toCandidates=[];moreSmartButton.hidden=true;
  ++smartState.request;$('smartResults').replaceChildren();
  smartStatus('목적지를 검색 결과에서 선택하세요.')
 });
 document.querySelectorAll('[data-search-mode]').forEach(b=>b.onclick=()=>setSearchMode(b.dataset.searchMode));
 setSearchMode('smart');
-$('smartRecommend').onclick=()=>{
+const moreSmartButton=el('button','다른 직행 추천 검색');
+moreSmartButton.type='button';
+moreSmartButton.hidden=true;
+$('smartPanel').append(moreSmartButton);
+moreSmartButton.onclick=()=>runSmartSearch(true);
+$('smartRecommend').onclick=()=>runSmartSearch(false);
+function runSmartSearch(showAll=false){
  if(!smartState.to){smartStatus('목적지 정류장을 먼저 선택하세요.',true);return}
  if(!cfg.key){smartStatus('설정에서 API 인증키를 등록하세요.',true);return}
  if(!navigator.geolocation){smartStatus('GPS를 사용할 수 없습니다. 직접 검색을 이용해 주세요.',true);return}
- const token=++smartState.request,button=$('smartRecommend');
+ const token=++smartState.request,button=showAll?moreSmartButton:$('smartRecommend');
+ smartState.showAll=showAll;
+ if(!showAll)moreSmartButton.hidden=true;
  const work=beginSearchProgress('최적의 버스 경로를 찾고 있습니다',()=>{
   ++smartState.request;button.disabled=false;
-  $('smartResults').replaceChildren();smartStatus('스마트 추천 검색을 취소했습니다.')
+  $('smartResults').replaceChildren();moreSmartButton.hidden=true;smartStatus('스마트 추천 검색을 취소했습니다.')
  });
  button.disabled=true;
  $('smartResults').replaceChildren();
@@ -1144,20 +1153,25 @@ $('smartRecommend').onclick=()=>{
    }
    // Partial results must be labelled: cap route downloads to avoid API exhaustion.
    searchProgressStep(work,'이용 가능한 버스 노선과 운행 방향을 확인하고 있습니다…');
-   const limited=[...routeIds].slice(0,20),variants=[];
+   const limited=[...routeIds].slice(0,showAll?20:12),variants=[];
+   let candidates=[];
    for(let i=0;i<limited.length;i+=3){
     const batch=await Promise.allSettled(limited.slice(i,i+3).map(async([id,no])=>smartRouteVariants(id,no)));
     if(token!==smartState.request)return;
     for(const result of batch)if(result.status==='fulfilled')variants.push(...result.value);
+    candidates=smartCandidates(variants,nearby,destinations);
+    // Stop querying route details as soon as the first usable direct-route
+    // candidates appear; exhaustive search is explicitly opt-in.
+    if(!showAll&&candidates.length)break;
    }
-   const candidates=smartCandidates(variants,nearby,destinations);
    if(!candidates.length){
-    smartStatus('직행 경로를 찾지 못했습니다. 반경 800m·최대 20개 목적지 노선을 확인했습니다. 환승 검색은 직접 검색에서 이용하세요.',true);
+    smartStatus('초기 검색 범위에서 직행 경로를 찾지 못했습니다. 다른 직행 추천 검색을 선택할 수 있습니다.',true);
+    moreSmartButton.hidden=showAll;
     return
    }
    searchProgressStep(work,'실시간 버스 도착정보를 확인하고 있습니다…');
    smartStatus('실시간 도착정보 조회 중…');
-   const shortlist=[...new Set(candidates.slice(0,20).map(c=>c.board.id))].slice(0,6);
+   const shortlist=[...new Set(candidates.slice(0,showAll?20:5).map(c=>c.board.id))].slice(0,showAll?6:2);
    const arrivalMap=new Map();let arrivalFailed=0;
    for(let i=0;i<shortlist.length;i+=3){
     const ids=shortlist.slice(i,i+3);
@@ -1167,9 +1181,9 @@ $('smartRecommend').onclick=()=>{
    }
    smartState.results=rankSmartCandidates(candidates,arrivalMap);
    showSmartResults(smartState.results,routeIds.size>limited.length||arrivalFailed>0);
-   smartStatus('추천 경로 '+smartState.results.length+'개 분석 · 목적지 경유 노선 '+limited.length+'개 검사'+(routeIds.size>limited.length?' (전체 '+routeIds.size+'개 중 일부)':''));
+   smartStatus((showAll?'추가 직행 추천':'우선 직행 추천')+' · 확인된 노선 '+smartState.results.length+'개 · 실제 도착정보 기준');
   }catch(error){
-   if(token===smartState.request){smartStatus('추천 조회 실패: '+error.message,true);recordError(error,'스마트 추천')}
+   if(token===smartState.request){smartStatus('추천 조회 실패: '+error.message,true);recordError(error,'스마트 추천');moreSmartButton.hidden=true}
   }finally{endSearchProgress(work);button.disabled=false}
  },error=>{
   if(token!==smartState.request)return;
