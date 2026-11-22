@@ -428,6 +428,21 @@ button:disabled{opacity:.65}
 .searchProgressCancel{background:#E9F5FB!important;color:#135C86!important;border:1px solid #B8D4E5!important}
 .searchProgressCancel:focus-visible{outline-color:#176B9A}
 #introCountdown{display:inline-block;min-width:1ch;font-variant-numeric:tabular-nums;font-weight:800}
+/* V1.4 Build 04 — one-row compact header; leave splash untouched. */
+.topbar header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 2px 5px;min-height:40px}
+.topbar .brandLine{display:flex;align-items:baseline;gap:10px;min-width:0;flex:1;white-space:nowrap}
+.topbar .brandLine h1{font-size:23px;line-height:1.2;flex-shrink:0;margin:0}
+.topbar .brandLine small{font-size:11px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar #refresh{flex-shrink:0}
+@media(max-width:480px){
+ .topbar .brandDescriptor{display:none}
+ .topbar .brandLine{gap:7px}
+ .topbar .brandLine small{font-size:10px}
+}
+@media(max-width:340px){
+ .topbar .brandLine h1{font-size:21px}
+ .topbar .brandLine{gap:5px}
+}
 </style></head><body>
 <div id="introSplash" class="introSplash" role="region" aria-label="JI BUS 인트로">
  <div class="introInner">
@@ -483,7 +498,7 @@ button:disabled{opacity:.65}
 </div>
 <main>
 <div class="topbar">
-<header><div><h1>JI BUS</h1><small>V1.4 · 청주 실시간 버스 · Build 03</small></div><button id="refresh" type="button" aria-label="실시간 정보 갱신"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5 9a7 7 0 0 1 12-4l3 7M4 12l3 7a7 7 0 0 0 12-4"/></svg>갱신</button></header>
+<header><div class="brandLine"><h1>JI BUS</h1><small>V1.4 <span class="brandDescriptor">· 청주 실시간 버스 </span>· Build 04</small></div><button id="refresh" type="button" aria-label="실시간 정보 갱신"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5 9a7 7 0 0 1 12-4l3 7M4 12l3 7a7 7 0 0 0 12-4"/></svg>갱신</button></header>
 <nav aria-label="주 메뉴"><button type="button" data-tab="home">홈</button><button type="button" data-tab="search">버스 검색</button><button type="button" data-tab="favorites">즐겨찾기</button><button type="button" data-tab="settings">설정</button></nav>
 </div>
 <section id="dashboardPanel" aria-label="JI BUS 대시보드">
@@ -536,7 +551,7 @@ button:disabled{opacity:.65}
 </main><script>
 /* V1.3 Build 05: check the deployed version on every page opening. */
 (async function boot(){
-  const current='20261122.1403';
+  const current='20261122.1404';
   const versionUrl=new URL('./version.json',location.href);
   versionUrl.searchParams.set('check',String(Date.now()));
   let deployed=current;
