@@ -427,6 +427,7 @@ button:disabled{opacity:.65}
 .searchProgressTrack{background:#DBE9F2}
 .searchProgressCancel{background:#E9F5FB!important;color:#135C86!important;border:1px solid #B8D4E5!important}
 .searchProgressCancel:focus-visible{outline-color:#176B9A}
+#introCountdown{display:inline-block;min-width:1ch;font-variant-numeric:tabular-nums;font-weight:800}
 </style></head><body>
 <div id="introSplash" class="introSplash" role="region" aria-label="JI BUS 인트로">
  <div class="introInner">
@@ -440,7 +441,7 @@ button:disabled{opacity:.65}
   <img class="introIllustration" src="assets/cheongju-splash-city.webp" alt="청주시 시내버스와 도시 풍경" width="400" height="201" loading="eager" decoding="async">
   <div class="introBottom">
    <button id="introEnter" type="button" class="introAction">→ 버스 찾으러 가기</button>
-   <p class="introAuto">◷ 5초 후 자동으로 이동합니다.</p>
+   <p class="introAuto">◷ <span id="introCountdown" aria-hidden="true">5</span>초 후 자동으로 이동합니다.</p>
    <div class="introFooter">디자인 및 개발 김정인</div>
   </div>
  </div>
@@ -449,18 +450,26 @@ button:disabled{opacity:.65}
 (function(){
  var splash=document.getElementById('introSplash');
  var button=document.getElementById('introEnter');
+ var countdown=document.getElementById('introCountdown');
  var closed=false;
- var timeout=null;
+ var timers=[];
  function enter(){
   if(closed)return;
   closed=true;
-  if(timeout!==null)clearTimeout(timeout);
+  for(var i=0;i<timers.length;i++)clearTimeout(timers[i]);
   splash.hidden=true;
   splash.setAttribute('aria-hidden','true');
   splash.remove();
  }
  button.addEventListener('click',enter);
- timeout=setTimeout(enter,5000);
+ for(var remaining=4;remaining>=1;remaining--){
+  (function(seconds){
+   timers.push(setTimeout(function(){
+    if(!closed)countdown.textContent=String(seconds);
+   },(5-seconds)*1000));
+  })(remaining);
+ }
+ timers.push(setTimeout(enter,5000));
 })();
 </script>
 <div id="searchProgressOverlay" class="searchProgressOverlay" hidden>
@@ -474,7 +483,7 @@ button:disabled{opacity:.65}
 </div>
 <main>
 <div class="topbar">
-<header><div><h1>JI BUS</h1><small>V1.4 · 청주 실시간 버스 · Build 02</small></div><button id="refresh" type="button" aria-label="실시간 정보 갱신"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5 9a7 7 0 0 1 12-4l3 7M4 12l3 7a7 7 0 0 0 12-4"/></svg>갱신</button></header>
+<header><div><h1>JI BUS</h1><small>V1.4 · 청주 실시간 버스 · Build 03</small></div><button id="refresh" type="button" aria-label="실시간 정보 갱신"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5 9a7 7 0 0 1 12-4l3 7M4 12l3 7a7 7 0 0 0 12-4"/></svg>갱신</button></header>
 <nav aria-label="주 메뉴"><button type="button" data-tab="home">홈</button><button type="button" data-tab="search">버스 검색</button><button type="button" data-tab="favorites">즐겨찾기</button><button type="button" data-tab="settings">설정</button></nav>
 </div>
 <section id="dashboardPanel" aria-label="JI BUS 대시보드">
@@ -527,7 +536,7 @@ button:disabled{opacity:.65}
 </main><script>
 /* V1.3 Build 05: check the deployed version on every page opening. */
 (async function boot(){
-  const current='20261122.1402';
+  const current='20261122.1403';
   const versionUrl=new URL('./version.json',location.href);
   versionUrl.searchParams.set('check',String(Date.now()));
   let deployed=current;
