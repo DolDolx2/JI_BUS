@@ -1113,36 +1113,51 @@ function showSmartResults(ranked,partial){
   if(keys.has(key))continue;keys.add(key);unique.push(item);
   if(unique.length>=(smartState.showAll?5:1))break
  }
- const note=el('p','도보시간(직선거리 기준)과 버스 이동시간(정류장당 2분 가정)을 사용한 참고 순위입니다. 실제 도보 경로·총 소요시간과 다를 수 있습니다.','muted');
- host.append(note);
  unique.forEach((item,index)=>{
-  const card=el('article',undefined,'smartCard');
-  const badge=el('span',index===0?'추천 1 · 우선 확인':'추천 '+(index+1),'smartRouteBadge');card.append(badge);
-  const head=el('div',undefined,'line'),title=el('strong',(index+1)+'순위 · '+item.route.no+'번'),walk=el('span','약 '+Math.round(item.board.distance)+'m 도보','muted');
-  head.append(title,walk);
-  const smartPath=el('div',undefined,'smartPath');renderStopFlow(smartPath,item.board.name,item.exit.name);card.append(head,smartPath);
-  card.append(el('p',(directionLabel(item.route)||'운행방향 미표시')+' · '+item.stopsCount+'정류장 이동','muted'));
-  const arrival=item.estimate!==null?'도착예정 약 '+Math.ceil(item.arrivalSeconds/60)+'분 후 · 도보 약 '+item.walkMinutes+'분 · 참고 합계 약 '+item.estimate+'분':
-   item.arrivalKnown?'도보로 승차 가능한 도착 차량 미확인':'실시간 도착정보 미확인';
-  const metrics=el('div',undefined,'smartMetricRow');
-  const metric=(caption,value)=>{const itemBox=el('div',undefined,'smartMetric');itemBox.append(el('span',caption),el('strong',value));return itemBox};
-  metrics.append(metric('도보','약 '+item.walkMinutes+'분'),metric('버스 도착',item.arrivalSeconds==null?'정보 없음':Math.ceil(item.arrivalSeconds/60)+'분 후'),metric('예상 합계',item.estimate==null?'확인 불가':'약 '+item.estimate+'분'));
-  card.append(metrics,el('p',arrival,'smartTiming'));
-  const advice=departureAdvice(item.arrivalSeconds,item.walkMinutes);
-  if(advice)card.append(el('p',advice.label,'leaveAdvice'));
-  attachMapLinks(card,item.board);
+  const card=el('article',undefined,'smartCard compactSmartCard');
+  const head=el('div',undefined,'smartCompactHead');
+  const id=el('div',undefined,'smartCompactIdentity');
+  id.append(el('span',index===0?'우선 추천':'추천 '+(index+1),'smartRouteBadge'),
+   el('strong',item.route.no+'번'));
+  const eta=el('strong',item.arrivalSeconds==null?'도착정보 없음':
+   Math.ceil(item.arrivalSeconds/60)+'분 후','smartCompactEta');
+  head.append(id,eta);card.append(head);
+  const path=el('div',undefined,'smartPath');
+  renderStopFlow(path,item.board.name,item.exit.name);card.append(path);
+  const compact=el('p','도보 약 '+item.walkMinutes+'분 · '+item.stopsCount+
+   '개 정류장'+(item.estimate==null?'':' · 참고 '+item.estimate+'분'),'smartCompactMeta');
+  card.append(compact);
   const button=el('button','이 경로 보기','primary');button.type='button';
   button.onclick=()=>{
    setTrip(item.board,item.exit);
    rememberTrip(item.board,item.exit);
    fromControl.input.value=item.board.name;
    toControl.input.value=item.exit.name;
-   // Use the matched direction only, not the other side of this route.
+   // Retain the matched direction and direct route rather than re-searching.
    otherTrip.routes=[item.route];otherTrip.ready=true;
    $('otherSelection').textContent=item.route.no+'번 · '+item.board.name+' → '+item.exit.name;
    setSearchMode('manual');switchTab('search')
   };
-  card.append(button);host.append(card)
+  card.append(button);
+  const detail=el('details',undefined,'smartDetails');
+  detail.append(el('summary','경로 상세 · 지도'));
+  detail.append(el('p',(directionLabel(item.route)||'운행방향 미표시')+
+   ' · 도보 약 '+Math.round(item.board.distance)+'m','muted'));
+  const metrics=el('div',undefined,'smartMetricRow');
+  const metric=(caption,value)=>{
+   const box=el('div',undefined,'smartMetric');
+   box.append(el('span',caption),el('strong',value));return box
+  };
+  metrics.append(metric('도보','약 '+item.walkMinutes+'분'),
+   metric('버스 도착',item.arrivalSeconds==null?'정보 없음':
+    Math.ceil(item.arrivalSeconds/60)+'분 후'),
+   metric('예상 합계',item.estimate==null?'확인 불가':'약 '+item.estimate+'분'));
+  detail.append(metrics);
+  const advice=departureAdvice(item.arrivalSeconds,item.walkMinutes);
+  if(advice)detail.append(el('p',advice.label,'leaveAdvice'));
+  detail.append(el('p','도보 및 이동시간은 추정치이며 실제 경로·소요시간과 다를 수 있습니다.','muted'));
+  attachMapLinks(detail,item.board);
+  card.append(detail);host.append(card)
  });
  if(partial)host.append(el('p','일부 정류장 도착정보를 확인하지 못해 추천 순위가 달라질 수 있습니다.','muted'));
  moreSmartButton.hidden=smartState.showAll
