@@ -1,462 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#EDF4F9"><title>JI BUS V1.4</title><style>
-*{box-sizing:border-box}body{margin:0;background:#eef3f6;color:#172c39;font:16px Pretendard,system-ui,sans-serif}main{max-width:540px;margin:auto;padding:18px}header,nav,.line{display:flex;align-items:center;justify-content:space-between;gap:8px}h1{margin:0;font-size:27px}small,.muted{color:#526879}nav{margin:20px 0}button,input,select{font:inherit;border:1px solid #c4d1da;border-radius:10px;padding:12px;background:white;color:inherit}button{cursor:pointer;font-weight:700}nav button{flex:1}button.active,button.primary{background:#155e75;color:white;border-color:#155e75}section,article{background:white;border:1px solid #dce5eb;border-radius:16px;padding:16px;margin-bottom:12px}input,select{width:100%;margin:6px 0 12px}label{display:block;font-weight:600}h2{font-size:19px;margin:0 0 12px}h3{margin:0;font-size:25px;color:#155e75}summary{cursor:pointer;padding:12px 0;color:#155e75;font-weight:700}.stoprow{display:grid;grid-template-columns:minmax(0,1fr) 70px;gap:14px;min-height:66px;align-items:stretch}.stopname{align-self:center;text-align:center;padding:12px 5px;border-radius:9px;background:#155e75;color:white;position:relative;overflow-wrap:anywhere}.stoprow:not(:last-child) .stopname:after{content:"";position:absolute;left:50%;top:100%;height:22px;border-left:2px solid #155e75}.stopname.board{background:#087f5b}.stopname.exit{background:#fff;color:#155e75;border:2px solid #155e75}.lane{background:#dce3e8;display:flex;align-items:center;justify-content:center;position:relative}.lane:before{content:"";position:absolute;height:100%;border-left:2px dashed white}.bus{z-index:1;background:#155e75;color:white;padding:6px;border-radius:8px;width:48px}.error{color:#a12424;white-space:pre-wrap}.eta{font-size:24px;font-weight:800;color:#087f5b}.past{opacity:.45}footer{text-align:center;font-size:12px;color:#526879;padding:15px} [hidden]{display:none!important} .results button{width:100%;text-align:left;margin-bottom:5px}
-button:disabled{opacity:.55;cursor:wait}#settings button{margin:4px 5px 4px 0}#settingsStatus{overflow-wrap:anywhere}.lane{flex-wrap:wrap}.bus{flex-shrink:0}
-/* Compact mobile layout — Build 07 */
-html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
-body{font-size:14px;line-height:1.45}
-main{padding:10px 12px;max-width:540px}
-header,nav,.line{gap:6px}
-h1{font-size:23px;line-height:1.15}
-small{font-size:11px;line-height:1.35}
-nav{margin:12px 0 9px}
-button,input,select{font-size:13px;padding:7px 10px;border-radius:7px;min-height:36px;line-height:1.3}
-nav button{min-height:38px;padding:8px 4px}
-section,article{padding:10px 12px;margin-bottom:8px;border-radius:11px}
-h2{font-size:16px;margin:0 0 7px}
-h3{font-size:22px;line-height:1.2}
-p{margin:6px 0;overflow-wrap:anywhere}
-input,select{margin:4px 0 8px}
-label{font-size:13px}
-summary{padding:7px 0;font-size:13px}
-.eta{font-size:21px;line-height:1.2}
-.muted,.error{font-size:12px}
-#heading p{margin:3px 0}
-#heading{padding:8px 12px}
-#settings button{margin:2px 4px 5px 0}
-#settings input,#settings select{min-height:39px}
-#saved{border-top:1px solid #dce5eb;padding-top:5px;margin-top:6px}
-#saved p{font-size:13px;margin:5px 0}
-#routeReport details{font-size:12px}
-#routeReport details div{padding:2px 0}
-.results button{min-height:38px;margin-bottom:4px;font-size:13px}
-#homePanel select{margin-bottom:3px}
-#status{margin:6px 2px 9px}
-.stoprow{grid-template-columns:minmax(0,1fr) 50px;gap:9px;min-height:44px}
-.stopname{font-size:12px;line-height:1.25;padding:7px 5px;border-radius:6px}
-.stoprow:not(:last-child) .stopname:after{height:15px}
-.lane:before{border-left-width:1px}
-.bus{width:34px;padding:3px;border-radius:5px}
-footer{font-size:10px;padding:9px 0}
-@media(max-width:340px){main{padding:8px}section,article{padding:9px}h1{font-size:21px}.eta{font-size:19px}}
-.transferCard{border-left:3px solid #b45309}.transferTag{font-size:12px;font-weight:700;color:#b45309}.transferCard h3{font-size:20px}.transferCard details{border-top:1px solid #dce5eb;margin-top:5px}#homePanel .results{margin-top:5px}
-/* Build 08 */
-:root{color-scheme:light;--bg:#eef3f6;--panel:#fff;--ink:#172c39;--muted:#526879;--border:#dce5eb;--control:#fff;--accent:#155e75;--future:#e2e8f0;--passed:#edf0f2;--current:#dbeafe;--current-ink:#1d4ed8;--past-ink:#64748b;--green:#087f5b;--amber:#92400e;--transfer:#fef3c7;--error:#a12424}
-:root[data-theme=dark]{color-scheme:dark;--bg:#101820;--panel:#1e293b;--ink:#e2e8f0;--muted:#a7b8c6;--border:#38495a;--control:#263746;--accent:#67e8f9;--future:#334155;--passed:#26313d;--current:#164e63;--current-ink:#bae6fd;--past-ink:#a0adba;--green:#4ade80;--amber:#fbbf24;--transfer:#493719;--error:#fca5a5}
-body{background:var(--bg);color:var(--ink)}
-section,article{background:var(--panel);border-color:var(--border)}
-button,input,select{background:var(--control);color:var(--ink);border-color:var(--border)}
-small,.muted,footer{color:var(--muted)}h3,summary{color:var(--accent)}.eta,.legEta{color:var(--green);font-variant-numeric:tabular-nums;white-space:nowrap}.eta.urgent,.legEta.urgent,.error{color:var(--error)}
-.topbar{position:sticky;top:0;z-index:30;background:var(--bg);padding:5px 0 1px}
-#refresh{display:flex;align-items:center;gap:4px}#refresh svg{width:15px;height:15px}#refresh.refreshing svg{animation:spin .9s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
-.routeFlag{font-size:11px;color:var(--accent);margin:3px 0}.routePath{font-weight:600}.transferCard .routeFlag,.transferTag{color:var(--amber)}
-.timelineRows{position:relative;padding:0 66px 0 0;isolation:isolate}
-.timelineRows:before{position:absolute;content:"";left:6px;top:22px;bottom:22px;border-left:1px solid var(--border)}
-.timelineRows .stoprow{height:44px;min-height:44px;display:grid;grid-template-columns:13px minmax(0,1fr);gap:5px;align-items:center}
-.timelineRows .stopname{background:var(--future);color:var(--ink);text-align:left;padding:5px 7px;max-height:40px;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;transition:background-color .35s,color .35s;line-height:1.2;border:1px solid transparent}
-.timelineRows .stopname:after{display:none}
-.timelineRows .stopname.passed{background:var(--passed);color:var(--past-ink)}
-.timelineRows .stopname.current{background:var(--current);color:var(--current-ink);border-color:#60a5fa;font-weight:700}
-.timelineRows .stopname.board{background:#087f5b;color:#fff;font-weight:700}
-.timelineRows .stopname.exit{background:#155e75;color:#fff;font-weight:700}
-.timelineRows .stopname.transfer{background:var(--transfer);color:var(--amber);font-weight:700}
-.stopDot{width:7px;height:7px;border-radius:50%;background:#94a3b8;justify-self:center;z-index:1}
-[data-state=current] .stopDot{background:#3b82f6}[data-state=board] .stopDot{background:#22c55e;width:10px;height:10px}[data-state=exit] .stopDot{background:#0891b2}[data-state=transfer] .stopDot{background:#d97706}
-.road,.markers{position:absolute;right:0;top:0;bottom:0;width:60px;border-radius:8px}
-.road{background:#424b54;border:5px solid #424b54;box-shadow:inset 1px 0 #aab7c2,inset -1px 0 #aab7c2}
-.road:before{content:"";position:absolute;left:50%;top:3px;bottom:3px;border-left:1px dashed #e2e8f0}
-.markers{pointer-events:none;overflow:visible}.vehicleMarker{position:absolute;top:0;left:50%;width:42px;height:36px;transition:transform 1s ease-in-out;will-change:transform}
-.vehicleMarker.noMotion{transition:none}.vehicleIcon{display:block;width:100%;height:100%;filter:drop-shadow(0 2px 2px #0007)}
-.routeToggle{display:block;width:100%;font-size:12px;margin-top:7px;min-height:32px;color:var(--accent)}
-.settingsGroup{border-top:1px solid var(--border);margin-top:8px;padding:4px 0}.settingsGroup>summary{font-size:14px}
-#themeMode{width:auto;min-height:34px;margin:0;font-size:12px;padding:4px}
-.themeRow{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.legEta{font-weight:700;font-size:14px;display:block;margin-bottom:5px}
-@media(prefers-reduced-motion:reduce){.vehicleMarker,.timelineRows .stopname{transition:none}#refresh.refreshing svg{animation:none}}
-.routeResult{border-top:1px solid var(--border);margin-top:4px;padding-top:5px}.routeResult p{margin:3px 0}.routeSuccess{color:var(--green);font-weight:700;font-size:13px}.routeWarning{color:var(--error);font-weight:700;font-size:13px}.routeDiagnostics{margin-top:4px}.routeDiagnostics summary{font-size:12px}#settingsStatus:empty{display:none}
-nav{gap:4px}nav button{padding:8px 2px;font-size:13px}
-#otherPanel label{margin:8px 0 2px}#otherPanel #swapOther{font-size:12px;margin:3px 0 5px}
-#otherPanel #findOther{width:100%;margin-top:5px}
-#otherPanel .results button{margin-bottom:3px}
-
-/* V1.1 unified bus search */
-.topbar nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
-.topbar nav button{min-height:40px}
-#searchPanel label{display:block;margin:7px 0 3px}
-#searchPanel button{max-width:100%}
-#searchPanel #swapOther{display:block;width:100%;margin:2px 0 7px}
-.searchActions{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:8px}
-.searchActions button{margin:0;min-height:40px}
-#otherSelection{margin:8px 0 3px}
-.favoriteCard{margin-bottom:8px}
-.favoriteCard strong{font-size:15px;overflow-wrap:anywhere}
-.favoriteActions{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
-.favoriteActions button{padding:6px 9px;min-width:35px}
-#settings{max-width:100%}
-#settings>p{margin:8px 0}
-#settings input{margin-top:5px}
-#keyFeedback{margin:6px 0}
-.results p{margin:6px 0}
-@media(max-width:360px){.searchActions{grid-template-columns:1fr}.favoriteActions button{font-size:12px}}
-.departureHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
-.departureHead label{margin:0!important}
-#nearbyFrom{width:auto;min-height:34px;padding:6px 10px;font-size:12px;white-space:nowrap}
-#nearbyResults{margin:4px 0}
-#nearbyResults button{width:100%;text-align:left}
-#nearbyResults p{margin:6px 0}
-
-/* Build 04: route-specific next stop and terminus, under each nearby stop */
-#nearbyResults .nearbyStopCard{width:100%;display:block;text-align:left;padding:10px 12px;margin-bottom:6px;white-space:normal}
-.nearbyStopHead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
-.nearbyStopTitle{font-size:14px;line-height:1.35}
-.nearbyDistance{font-size:12px;white-space:nowrap;color:var(--muted);font-weight:600}
-.nearbyDirectionList{display:block;margin-top:5px;font-size:12px;line-height:1.4;font-weight:400}
-.nearbyDirectionLine{display:flex;flex-wrap:wrap;gap:2px 9px;padding:5px 0}
-.nearbyDirectionLine+.nearbyDirectionLine{border-top:1px solid var(--border)}
-.nearbyNext{color:var(--ink);font-weight:600}
-.nearbyTerminal{color:var(--muted)}
-.nearbyRouteNo{color:var(--accent);font-weight:600}
-.nearbyMore{display:block;color:var(--muted);font-size:11px;margin-top:4px}
-
-/* V1.2 smart recommendations */
-.searchModeTabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:11px}
-.searchModeTabs button{width:100%;min-height:38px}
-#smartPanel label{margin:5px 0}
-#smartPanel #smartRecommend{width:100%;margin:8px 0}
-#smartResults{margin-top:10px}
-.smartCard{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin:6px 0;background:var(--panel)}
-.smartCard strong{font-size:15px;color:var(--accent)}
-.smartCard .muted{font-size:12px}
-.smartCard .smartPath{font-size:13px;font-weight:600}
-.smartCard .smartTiming{font-size:12px;font-weight:700;color:var(--green)}
-.smartCard button{width:100%;margin:7px 0 0}
-#smartStatus{margin:7px 0;font-size:12px}
-
-/* V1.2 Build 02 — interactive, three-second Cheongju bus introduction */
-.introSplash{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#080d16;color:#eaf6ff;padding:16px;font-family:Pretendard,system-ui,sans-serif}
-.introInner{width:min(100%,520px);min-height:min(500px,calc(100dvh - 32px));max-height:calc(100dvh - 32px);display:flex;flex-direction:column;background:#102039;border-radius:22px;padding:20px 18px 14px;overflow:auto}
-.introTop{display:flex;align-items:center;justify-content:space-between;color:#9ec5ea;font-size:11px;letter-spacing:.04em}
-.introTop .introIcon{color:#7dd3ed;font-size:18px}
-.introBrand{display:flex;flex-direction:column;align-items:center;gap:10px;margin:auto 0 10px;text-align:center}
-.introLogo{width:60px;height:60px;border-radius:50%;background:#1c3a59;display:grid;place-items:center;color:#7dd3ed}
-.introLogo svg{width:34px;height:34px}
-.introBrand h2{margin:0;color:white;font-size:26px;letter-spacing:.045em}
-.introBrand p{margin:0;color:#aed0e9;font-size:13px}
-.introCity{font-size:12px;color:#80cde9;font-weight:650}
-.introRoad{width:100%;height:auto;max-height:160px;margin:5px 0 24px;overflow:visible}
-.introAction{width:100%;min-height:49px;background:#7bd3ed!important;color:#102039!important;border:0!important;border-radius:10px!important;font-size:15px!important;font-weight:750!important;cursor:pointer}
-.introAction:focus-visible{outline:3px solid white;outline-offset:3px}
-.introFooter{text-align:center;color:#8eacc5;font-size:10px;padding-top:12px}
-.introSplash[hidden]{display:none!important}
-@media(max-height:560px){.introInner{min-height:0}.introBrand{margin:18px 0}.introRoad{max-height:110px;margin:0 0 10px}}
-@media(prefers-reduced-motion:reduce){.introRoad .introAnimatedBus{animation:none}}
-
-/* V1.3 cross-browser utilities */
-.weatherCredit{font-size:10px;margin:-6px 0 9px;text-align:right}.weatherCredit a{color:var(--accent)}
-#weatherStrip{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:2px 0 10px;border-radius:9px;background:var(--panel);padding:8px 11px;border:1px solid var(--border)}
-#weatherStrip .weatherLabel{font-weight:700;font-size:12px}
-#weatherNow{color:var(--muted);font-size:12px;text-align:right}
-.leaveAdvice{font-size:13px;font-weight:750;color:var(--green);background:var(--current);padding:7px;border-radius:8px}
-.externalMaps{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.mapAppLink{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;color:var(--accent);font-size:12px;font-weight:700;text-decoration:none}
-.mapAppLink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-#recentTrips{display:grid;gap:5px}
-.recentTripRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
-.recentTripRow button:first-child{text-align:left;overflow-wrap:anywhere}
-.recentTripRow button:last-child{font-size:12px}
-
-/* V1.3 Build 02: navy and cyan dashboard redesign; works in Chrome, Samsung Internet and Safari */
-:root{--bg:#07182b;--panel:#102b49;--ink:#edf7ff;--muted:#a2bfd6;--border:#244c70;--control:#143454;--accent:#71d9f4;--future:#194366;--passed:#15304a;--current:#174e6c;--current-ink:#d4f8ff;--past-ink:#95b4ca;--green:#70ebbb;--amber:#ffcc66;--transfer:#3f3647;--error:#ff9d9d}
-:root[data-theme=dark]{--bg:#07182b;--panel:#102b49;--ink:#edf7ff;--muted:#a2bfd6;--border:#244c70;--control:#143454;--accent:#71d9f4;--future:#194366;--passed:#15304a;--current:#174e6c;--current-ink:#d4f8ff;--past-ink:#95b4ca;--green:#70ebbb;--amber:#ffcc66;--transfer:#3f3647;--error:#ff9d9d}
-:root[data-theme=light]{--bg:#edf6fb;--panel:#fff;--ink:#132e46;--muted:#486982;--border:#cfdeeb;--control:#f5fafe;--accent:#087caa;--future:#e8f3fc;--passed:#e6edf2;--current:#d1f0ff;--current-ink:#06466c;--past-ink:#697c8c;--green:#087f5b;--amber:#945c09;--transfer:#fff2d6;--error:#a12424}
-body{background:var(--bg);color:var(--ink)}
-main{max-width:620px;padding:12px 14px}
-.topbar{background:var(--bg);padding-bottom:8px}
-.topbar header{padding:8px 2px 6px}
-.topbar h1{font-size:24px;font-weight:850;letter-spacing:.04em;color:var(--ink)}
-.topbar small{color:var(--muted)}
-.topbar nav{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
-.topbar nav button{min-height:39px;padding:7px 3px;border-radius:12px;font-size:12px}
-button.active,button.primary{background:#63d9f5;color:#092039;border-color:#63d9f5}
-#dashboardPanel{background:transparent;border:0;padding:0;margin:0}
-.dashWeather{border-radius:17px;background:linear-gradient(120deg,#0c3155,#15518c);padding:16px 17px 13px;margin:4px 0 13px;color:#f8fcff;box-shadow:0 8px 28px #00101e40}
-.dashWeatherHead{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:700;font-size:12px;opacity:.9}
-.dashWeatherMain{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-top:12px}
-#weatherNow{font-size:22px;font-weight:800;color:white;text-align:left}
-#clockNow{font-size:26px;letter-spacing:-.02em;font-weight:800;font-variant-numeric:tabular-nums}
-.dashWeather .weatherCredit{font-size:10px;text-align:right;margin:11px 0 0;color:#c7e3fa}
-.dashWeather .weatherCredit a{color:#c7e3fa}
-.dashActions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:0 0 15px}
-.dashAction{min-width:0;min-height:108px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;background:linear-gradient(160deg,#163d66,#0d2847);border:1px solid #254c70;color:#e6f8ff;border-radius:15px;padding:10px 4px;text-align:center}
-.dashAction svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.dashAction span{font-size:12px;font-weight:800}
-.dashAction small{font-size:10px;color:#b0d0e6}
-.dashAction.primary{background:linear-gradient(140deg,#86e6fa,#43c8e9);color:#092039;border-color:#86e6fa}
-.dashAction.primary small{color:#21516c}
-.dashSection{background:#102b49;border:1px solid #254769;border-radius:16px;padding:15px;margin-bottom:11px;color:#f3fbff}
-.dashSection .dashTitle{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:11px}
-.dashSection .dashTitle h2{font-size:16px;margin:0;color:#f0f9ff}
-.dashSection .dashTitle button{font-size:11px;border:0;background:transparent;color:#8cddf5;padding:3px;min-height:27px}
-#recentPanel{background:#102b49;border-color:#254769}
-#recentPanel h2{color:#f1faff}
-#recentPanel .recentTripRow button:first-child{background:#143555;border-color:#254b6c;color:#f1fbff}
-#recentPanel .recentTripRow button:last-child{background:#18344f;color:#aacbe0;border-color:#31506b}
-#dashboardPanel .muted{color:#aacbe0}
-#searchPanel,#favoritesPanel,#settings,#heading,#cards article{box-shadow:0 3px 18px #00132919}
-.smartCard{background:var(--panel);border:1px solid var(--border);border-radius:15px;padding:14px;margin:9px 0}
-.smartCard .smartTiming{font-size:12px}
-.smartCard .smartRouteBadge{background:#1a6282;color:#bff4ff;border-radius:20px;padding:5px 9px;font-size:11px;font-weight:800;display:inline-block}
-.smartCard .smartMetricRow{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
-.smartCard .smartMetric{background:var(--control);border:1px solid var(--border);border-radius:9px;padding:8px;min-width:75px;flex:1;font-size:12px;text-align:center}
-.smartCard .smartMetric strong{display:block;font-size:15px;margin-top:2px}
-.smartCard .smartPath{font-weight:750}
-.smartCard button.primary{background:#67d9f2!important;color:#07223a!important}
-#searchPanel h2{color:var(--ink)}
-.introSplash{background:#061427}
-.introInner{background:linear-gradient(165deg,#072344 0%,#104677 67%,#06192f 100%);position:relative;box-shadow:0 20px 60px #0006}
-.introBrand h2{font-size:35px;font-weight:850;letter-spacing:.075em;text-shadow:0 3px 12px #07233b}
-.introCity{background:#155b8d;border-radius:99px;padding:6px 13px}
-.introBrand{position:relative;z-index:1}
-.introScene{width:100%;height:130px;display:block;margin:0 0 -40px;opacity:.85}
-.introRoad{position:relative;z-index:1;filter:drop-shadow(0 7px 8px #00142580);margin-bottom:11px}
-.introAuto{font-size:11px;color:#b0d8ef;text-align:center;margin:8px 0 0}
-.introAction{position:relative;z-index:2}
-@media(max-width:380px){.dashActions{gap:5px}.dashAction{min-height:96px}.dashAction span{font-size:11px}.dashAction small{font-size:9px}.dashWeather{padding:12px}#clockNow{font-size:23px}#weatherNow{font-size:18px}}
-@media(max-height:540px){.introScene{height:55px;margin-bottom:-20px}.introBrand{margin:8px 0}.introInner{min-height:0}}
-
-/* Build 03: immersive illustrated intro. Motion affects only the vehicle. */
-.introInner{padding:17px 16px 12px;min-height:min(530px,calc(100dvh - 32px));background:linear-gradient(160deg,#06213f 0%,#073562 54%,#08192e 100%)}
-.introTop{position:relative;z-index:2}
-.introIcon{border-radius:24px;padding:4px 9px;background:#0b5e96;color:#d8f7ff!important;font-size:11px!important}
-.introBrand{margin:10px 0 4px;gap:8px}
-.introBrand h2{font-size:37px}
-.introBrand p{font-size:13px}
-.introLogo{width:65px;height:65px;background:#0a5085}
-.introCity{font-size:11px;padding:5px 12px;background:#145684;color:#d6f3ff}
-.introIllustration{height:auto;max-height:none;aspect-ratio:420/260;margin:0 0 11px;width:100%;border-radius:12px;overflow:hidden;filter:none}
-.introAction{min-height:51px;border-radius:25px!important;font-size:16px!important;letter-spacing:-.01em}
-.introAuto{margin:7px 0 0}
-.introFooter{padding-top:6px}
-@media(max-height:600px){.introBrand{margin:4px 0 1px;gap:4px}.introLogo{width:42px;height:42px}.introLogo svg{width:27px;height:27px}.introBrand h2{font-size:25px}.introBrand p{font-size:11px}.introIllustration{max-height:180px;margin-bottom:5px}.introInner{padding:10px;min-height:0}}
-
-/* V1.3 Build 03: consistent semantic stop badges */
-.stopFlow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:13px;line-height:1.55}
-.stopFlowPoint{display:inline-flex;align-items:center;gap:6px;min-width:0}
-.stopFlowName{font-size:13px;font-weight:700;overflow-wrap:anywhere}
-.stopFlowArrow{font-size:17px;font-weight:700;color:var(--muted)}
-.stopBadge{display:inline-flex;align-items:center;justify-content:center;flex:none;font-weight:850;font-size:11px;line-height:1.1;letter-spacing:-.02em;border-radius:6px;padding:5px 7px;white-space:nowrap}
-.stopBadge-board{color:#062b27;background:#81e8c9;border:1px solid #81e8c9}
-.stopBadge-exit{color:#082b47;background:#89d7ff;border:1px solid #89d7ff}
-.stopBadge-transfer{color:#402800;background:#ffd47c;border:1px solid #ffd47c}
-.routePath{margin:8px 0;font-weight:normal}
-.timelineRows .stopname{display:flex;-webkit-line-clamp:unset;-webkit-box-orient:initial;align-items:center;gap:5px}
-.timelineRows .stopname .stopBadge{font-size:10px;padding:4px 5px}
-.timelineStopName{min-width:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
-.smartPath{margin:9px 0 7px}
-.smartCard .smartPath .stopFlowName{font-size:13px}
-@media(max-width:360px){.stopFlow{gap:4px}.stopFlowPoint{gap:4px}.stopBadge{font-size:10px;padding:4px 5px}.stopFlowName{font-size:12px}}
-
-/* V1.3 Build 04 — approved still illustration splash */
-.introSplash{padding:10px;background:#061428}
-.introInner{width:min(100%,460px);max-height:calc(100dvh - 20px);min-height:min(555px,calc(100dvh - 20px));border-radius:17px;padding:17px 14px 10px;background:linear-gradient(180deg,#08264a 0%,#0a3765 51%,#061c37 100%);justify-content:space-between}
-.introTop{font-size:10px;letter-spacing:0;color:#a0dbfa}
-.introIcon{font-size:11px!important;background:#0e578b;border-radius:25px;padding:6px 11px;color:#e4f9ff!important}
-.introBrand{margin:3px 0 1px;gap:9px}
-.introLogo{width:62px;height:62px;border-radius:50%;box-shadow:0 6px 20px #0024486b}
-.introBrand h2{font-size:34px;letter-spacing:.055em}
-.introBrand p{font-size:12px;color:#b2daf1}
-.introCity{background:#145684;color:#d9f4ff;font-size:11px;padding:7px 13px;border-radius:25px}
-.introIllustration{width:calc(100% + 28px);max-width:none;flex:0 1 auto;align-self:center;aspect-ratio:420/260;margin:0 -14px 12px;border-radius:0;filter:none}
-.introAction{border-radius:22px!important;min-height:47px;font-size:14px!important}
-.introAuto{text-align:center;font-size:11px;color:#b1cee3;margin:7px 0 1px}
-.introFooter{text-align:center;font-size:9px;color:#a9c6db;padding:3px 0}
-@media(max-height:590px){.introInner{min-height:0;padding:9px 12px 5px}.introBrand{margin:1px 0;gap:4px}.introLogo{width:45px;height:45px}.introLogo svg{width:27px;height:27px}.introBrand h2{font-size:27px}.introBrand p{font-size:10px}.introIllustration{max-height:41dvh;margin:0 -12px 5px;width:calc(100% + 24px)}.introAction{min-height:39px}.introAuto{font-size:10px;margin:3px 0}.introFooter{padding:0}}
-@media(max-width:340px){.introBrand h2{font-size:28px}.introIcon{font-size:10px!important;padding:4px 6px}.introBrand p{font-size:11px}}
-
-/* Build 05: approved artwork is a genuine image asset, not a reconstructed SVG */
-.introSplash{padding:8px;background:#06152c}
-.introInner{width:min(100%,430px);max-height:calc(100dvh - 16px);height:min(670px,calc(100dvh - 16px));min-height:0;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;border-radius:16px;padding:16px 13px 12px;background:linear-gradient(180deg,#061d42 0%,#0a3974 44%,#082854 75%,#061831 100%);box-shadow:0 18px 50px #0007}
-.introTop{display:flex;gap:9px;align-items:center;justify-content:space-between;font-size:10px;color:#8bdef6;letter-spacing:0;min-height:27px;z-index:1}
-.introIcon{font-size:11px!important;background:#104f83;color:#f4fcff!important;border-radius:25px;padding:6px 10px}
-.introBrand{flex:0 0 auto;margin:0;gap:9px;align-items:center;text-align:center;z-index:1}
-.introLogo{height:58px;width:58px;background:#0b5290;border-radius:50%;box-shadow:0 6px 18px #00264b88}
-.introBrand h2{font-size:36px;line-height:1.05;font-weight:850;color:white;letter-spacing:.03em;margin:0}
-.introBrand p{font-size:12px;color:#b6e6f6;margin:0}
-.introCity{background:#155d9b;color:#e1f8ff;border-radius:25px;font-size:11px;padding:7px 14px;white-space:normal}
-.introIllustration{display:block;object-fit:contain;width:calc(100% + 26px);height:auto;max-height:44%;flex:0 1 auto;min-height:0;margin:0 -13px;border-radius:0;filter:none}
-.introBottom{display:flex;flex-direction:column;gap:5px;flex:0 0 auto}
-.introAction{width:100%;min-height:48px;border-radius:24px!important;background:#67def4!important;color:#062b49!important;font-size:15px!important;font-weight:850!important;letter-spacing:-.01em}
-.introAuto{color:#b2d6e9;text-align:center;margin:0;font-size:11px}
-.introFooter{font-size:10px;text-align:center;color:#a9c8dc;padding:2px 0}
-@media(max-height:590px){
-.introInner{padding:9px 11px 6px}
-.introBrand{gap:4px}
-.introLogo{width:42px;height:42px}
-.introLogo svg{width:26px;height:26px}
-.introBrand h2{font-size:27px}
-.introBrand p{font-size:11px}
-.introCity{font-size:10px;padding:4px 10px}
-.introIllustration{max-height:39%;width:calc(100% + 22px);margin:0 -11px}
-.introAction{min-height:38px;font-size:13px!important}
-.introAuto{font-size:10px}
-.introFooter{font-size:9px}
-}
-@media(max-width:340px){.introIcon{padding:4px 7px;font-size:10px!important}.introTop{font-size:9px}.introBrand h2{font-size:30px}}
-
-/* V1.3 Build 06 — unobtrusive on-demand attribution */
-.dashWeather .weatherSource{font-size:10px;text-align:right;margin:4px 0 0;color:#c7e3fa}
-.dashWeather .weatherSource summary{display:inline-block;cursor:pointer;list-style:none;user-select:none}
-.dashWeather .weatherSource summary::-webkit-details-marker{display:none}
-.dashWeather .weatherSource summary:focus-visible{outline:2px solid #7ce2f7;outline-offset:3px}
-.dashWeather .weatherSource p{margin:7px 0 0;color:#d4eafa}
-.dashWeather .weatherSource a{color:#bdeafa;text-decoration:underline}
-
-/* V1.4 Build 01 — compact, on-demand route discovery actions */
-.progressiveActions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:8px 0}
-.progressiveActions button{min-height:42px;background:var(--control);color:var(--accent);font-size:12px;border:1px solid var(--border)}
-#smartPanel>button:last-child{width:100%;min-height:42px;margin-top:8px;background:var(--control);color:var(--accent);border:1px solid var(--border)}
-@media(max-width:360px){.progressiveActions{grid-template-columns:1fr}}
-/* V1.3 Build 07 — cancellable, step-aware search progress dialog */
-.searchProgressOverlay[hidden]{display:none!important}
-.searchProgressOverlay{position:fixed;inset:0;z-index:9500;background:rgba(3,15,29,.73);display:grid;place-items:center;padding:18px;font-family:Pretendard,system-ui,sans-serif}
-.searchProgressPanel{width:min(100%,390px);background:linear-gradient(165deg,#102f50,#091c34);border:1px solid #366287;color:#e9f8ff;border-radius:21px;padding:25px 21px 21px;box-shadow:0 18px 65px #0009;text-align:center}
-.searchProgressIcon{width:64px;height:64px;display:grid;place-items:center;margin:0 auto 15px;border-radius:50%;color:#8ae4f8;background:#214c70}
-.searchProgressIcon svg{height:37px;width:37px}
-.searchProgressPanel h2{font-size:20px;font-weight:800;margin:0 0 12px;color:#f5fcff}
-.searchProgressPanel p{font-size:13px;line-height:1.6;color:#bfd8ea;margin:0 0 12px}
-.searchProgressTrack{position:relative;height:6px;border-radius:99px;background:#294f6d;margin:16px 0 21px;overflow:hidden}
-.searchProgressTrack::after{content:"";position:absolute;inset:0 auto 0 0;width:35%;border-radius:99px;background:#70dff5;animation:searchProgressTravel 1.25s ease-in-out infinite alternate}
-@keyframes searchProgressTravel{to{transform:translateX(185%)}}
-.searchProgressCancel{min-height:43px;min-width:150px;color:#e9f7ff!important;border-radius:10px!important;border:1px solid #507290!important;background:#234560!important;font-weight:750!important;cursor:pointer}
-.searchProgressCancel:focus-visible{outline:3px solid #78e2f9;outline-offset:3px}
-@media(prefers-reduced-motion:reduce){.searchProgressTrack::after{animation:none;width:55%}}
-
-/* V1.4 Build 02 — high-visibility light blue/white application theme.
-   Approved dark splash illustration remains unchanged. */
-:root,:root[data-theme=light],:root[data-theme=dark]{
- color-scheme:light;
- --bg:#EDF4F9;--panel:#FFFFFF;--ink:#19354C;--muted:#536B7E;
- --border:#CADAE6;--control:#F6FAFD;--accent:#176B9A;
- --future:#EAF2F8;--passed:#E6ECF1;--current:#D7EEFB;
- --current-ink:#084E76;--past-ink:#607587;--green:#087F5B;
- --amber:#895100;--transfer:#FFF0CC;--error:#B42332;
-}
-html{background:var(--bg)}
-body{background:var(--bg);color:var(--ink)}
-main{color:var(--ink)}
-.topbar{background:var(--bg);border-bottom:1px solid #D6E3ED}
-.topbar h1{color:#153B59}
-.topbar small{color:#526B7C}
-section,article,#searchPanel,#favoritesPanel,#settings,#heading,#cards article{
- background:#FFFFFF;border-color:var(--border);color:var(--ink);
- box-shadow:0 3px 14px rgba(26,67,98,.07);
-}
-#dashboardPanel{background:transparent;border:0;box-shadow:none}
-button,input,select{background:#FFFFFF;color:var(--ink);border:1px solid #B9CDDC}
-input::placeholder{color:#657D90;opacity:1}
-button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{
- outline:3px solid #43A9D8;outline-offset:2px
-}
-button.active,button.primary,.smartCard button.primary{
- background:#176B9A!important;color:#FFFFFF!important;border-color:#176B9A!important
-}
-.topbar nav button:not(.active){background:#FFFFFF;color:#28546E;border-color:#C5D9E5}
-button:disabled{opacity:.65}
-.dashWeather{
- background:linear-gradient(120deg,#FFFFFF,#DBEFFB);
- color:#19354C;border:1px solid #C2DCEA;
- box-shadow:0 4px 18px rgba(26,72,105,.08)
-}
-.dashWeatherHead{color:#355970;opacity:1}
-#weatherNow,#clockNow{color:#19354C}
-.dashWeather .weatherSource,
-.dashWeather .weatherSource summary,
-.dashWeather .weatherSource p,
-.dashWeather .weatherSource a{color:#315E79}
-.dashActions{gap:9px}
-.dashAction,.dashAction.primary{
- background:#FFFFFF!important;color:#176B9A!important;
- border:1px solid #C6D9E6!important;
- box-shadow:0 3px 12px rgba(31,78,112,.06)
-}
-.dashAction.primary{background:#E3F3FC!important;border-color:#8FCBE5!important}
-.dashAction small,.dashAction.primary small{color:#527287!important}
-.dashSection,#recentPanel{
- background:#FFFFFF;border:1px solid #CADAE6;color:#19354C;
- box-shadow:0 3px 14px rgba(26,67,98,.06)
-}
-.dashSection .dashTitle h2,#recentPanel h2{color:#19354C}
-.dashSection .dashTitle button{color:#176B9A}
-#recentPanel .recentTripRow button:first-child{
- background:#F3F9FD;color:#19354C;border-color:#C9DBE8
-}
-#recentPanel .recentTripRow button:last-child{
- background:#F3F9FD;color:#176B9A;border-color:#C9DBE8
-}
-#dashboardPanel .muted,.muted,small,footer{color:#536B7E}
-.smartCard{background:#FFFFFF;border-color:#C4D8E6}
-.smartCard .smartRouteBadge{background:#DFF1FC;color:#095579}
-.smartCard .smartMetric{background:#F2F8FC;border-color:#D2E3EF}
-.smartCard .smartPath{color:#19354C}
-#weatherStrip{background:#FFFFFF}
-.searchModeTabs button:not(.active),.progressiveActions button,
-#smartPanel>button:last-child{
- background:#E8F4FB!important;color:#145D87!important;
- border:1px solid #B8D7E9!important
-}
-#nearbyResults .nearbyStopCard{background:#FFFFFF;color:var(--ink)}
-#nearbyResults .nearbyDistance{color:#536B7E}
-.timelineRows .stopname.board{background:#087F5B;color:#FFFFFF}
-.timelineRows .stopname.exit{background:#176B9A;color:#FFFFFF}
-.timelineRows .stopname.transfer{background:#FFF0CC;color:#805000}
-.timelineRows .stopname.current{background:#D7EEFB;color:#084E76}
-.timelineRows .stopname.passed{background:#E6ECF1;color:#607587}
-.road{background:#596D7E;border-color:#596D7E}
-.stopFlow .stopBadge{font-weight:800}
-.eta,.legEta{color:#087F5B}
-.eta.urgent,.legEta.urgent,.error{color:#B42332}
-.routeFlag,.routeToggle,.mapAppLink{color:#176B9A}
-.transferTag,.transferCard .routeFlag{color:#895100}
-.searchProgressOverlay{background:rgba(15,43,65,.42)}
-.searchProgressPanel{
- background:#FFFFFF;border:1px solid #BCD5E5;color:#19354C;
- box-shadow:0 16px 55px rgba(24,65,95,.25)
-}
-.searchProgressPanel h2{color:#19354C}
-.searchProgressPanel p{color:#536B7E}
-.searchProgressIcon{background:#DBF0FA;color:#176B9A}
-.searchProgressTrack{background:#DBE9F2}
-.searchProgressCancel{background:#E9F5FB!important;color:#135C86!important;border:1px solid #B8D4E5!important}
-.searchProgressCancel:focus-visible{outline-color:#176B9A}
-#introCountdown{display:inline-block;min-width:1ch;font-variant-numeric:tabular-nums;font-weight:800}
-/* V1.4 Build 04 — one-row compact header; leave splash untouched. */
-.topbar header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 2px 5px;min-height:40px}
-.topbar .brandLine{display:flex;align-items:baseline;gap:10px;min-width:0;flex:1;white-space:nowrap}
-.topbar .brandLine h1{font-size:23px;line-height:1.2;flex-shrink:0;margin:0}
-.topbar .brandLine small{font-size:11px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.topbar #refresh{flex-shrink:0}
-@media(max-width:480px){
- .topbar .brandDescriptor{display:none}
- .topbar .brandLine{gap:7px}
- .topbar .brandLine small{font-size:10px}
-}
-@media(max-width:340px){
- .topbar .brandLine h1{font-size:21px}
- .topbar .brandLine{gap:5px}
-}
-/* V1.4 Build 05: refresh must stay visible in the compact mobile header. */
-.topbar #refresh{
- display:inline-flex!important;visibility:visible!important;opacity:1;
- align-items:center;justify-content:center;gap:5px;flex:0 0 auto;
- min-width:40px;min-height:38px;padding:7px 10px;white-space:nowrap
-}
-.topbar .brandLine{min-width:0;overflow:hidden}
-.topbar .brandLine small{min-width:0}
-@media(max-width:480px){
- .topbar #refresh{width:40px;min-width:40px;padding:7px}
- .topbar #refresh .refreshLabel{display:none}
- .topbar #refresh svg{width:19px;height:19px}
-}
-</style></head><body>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#EDF4F9"><title>JI BUS V1.4</title><link rel="stylesheet" href="styles.css?v=20261122.1406"><link rel="stylesheet" href="ui-stabilization.css?v=20261122.1406"></head><body>
 <div id="introSplash" class="introSplash" role="region" aria-label="JI BUS 인트로">
  <div class="introInner">
   <div class="introTop"><span>CHEONGJU SMART BUS</span><span class="introIcon">⌖ 청주시 전용</span></div>
@@ -511,7 +53,7 @@ button:disabled{opacity:.65}
 </div>
 <main>
 <div class="topbar">
-<header><div class="brandLine"><h1>JI BUS</h1><small>V1.4 <span class="brandDescriptor">· 청주 실시간 버스 </span>· Build 05</small></div><button id="refresh" type="button" aria-label="현재 화면 갱신" title="현재 화면 갱신"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5 9a7 7 0 0 1 12-4l3 7M4 12l3 7a7 7 0 0 0 12-4"/></svg><span class="refreshLabel">갱신</span></button></header>
+<header><div class="brandLine"><h1>JI BUS</h1><small>V1.4 <span class="brandDescriptor">· 청주 실시간 버스 </span>· Build 06</small></div><button id="refresh" type="button" aria-label="현재 화면 갱신" title="현재 화면 갱신"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5 9a7 7 0 0 1 12-4l3 7M4 12l3 7a7 7 0 0 0 12-4"/></svg><span class="refreshLabel">갱신</span></button></header>
 <nav aria-label="주 메뉴"><button type="button" data-tab="home">홈</button><button type="button" data-tab="search">버스 검색</button><button type="button" data-tab="favorites">즐겨찾기</button><button type="button" data-tab="settings">설정</button></nav>
 </div>
 <section id="dashboardPanel" aria-label="JI BUS 대시보드">
@@ -526,17 +68,15 @@ button:disabled{opacity:.65}
   <button type="button" class="dashAction" data-quick="favorites"><svg viewBox="0 0 24 24"><path d="m12 2 3 6 7 .9-5 5 .9 7.1-5.9-3.2-5.9 3.2.9-7.1-5-5 7-.9z"/></svg><span>즐겨찾기</span><small>자주 가는 노선</small></button>
   <button type="button" class="dashAction" data-quick="nearby"><svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg><span>주변 정류장</span><small>GPS로 검색</small></button>
  </div>
- <div id="recentPanel" class="dashSection"><div class="dashTitle"><h2>◷ 최근 검색</h2><button type="button" data-quick="manual">새 구간 검색 ›</button></div><div id="recentTrips"></div><p class="muted">최근 5개 구간이 이 기기에만 저장됩니다.</p></div>
- <div class="dashSection"><div class="dashTitle"><h2>☆ 버스 이용 안내</h2></div><p class="muted">현재 위치와 목적지를 입력하면 탑승 정류장, 버스 도착시간, 출발 권장시간을 확인할 수 있습니다.</p></div>
+ <div id="recentPanel" class="dashSection"><div class="dashTitle"><h2>◷ 최근 검색</h2><button type="button" data-quick="manual">새 구간 검색 ›</button></div><div id="recentTrips"></div></div>
+ 
 </section>
-<section id="searchPanel">
-<h2>버스 검색</h2>
+<section id="searchPanel" aria-label="버스 검색">
 <div class="searchModeTabs" role="group" aria-label="검색 방식">
 <button type="button" data-search-mode="smart">스마트 추천</button>
 <button type="button" data-search-mode="manual" class="active">직접 검색</button>
 </div>
 <div id="smartPanel" hidden>
-<p class="muted">목적지를 선택하고 현재 위치를 기준으로 이용할 버스를 추천받습니다.</p>
 <label for="smartToInput">목적지 정류장</label><div id="smartToResults" class="searchControl"></div>
 <button id="smartRecommend" class="primary" type="button">현재 위치에서 추천받기</button>
 <p id="smartStatus" class="muted" role="status" aria-live="polite">목적지를 검색 결과에서 선택하세요.</p>
@@ -557,13 +97,38 @@ button:disabled{opacity:.65}
 <button id="saveKey" class="primary" type="button">인증키 저장 및 확인</button>
 <p class="muted">인증키는 이 브라우저에 저장되며 외부에 공개하지 마세요.</p>
 <p id="settingsStatus" role="status" aria-live="polite"></p>
+<div class="developerSettings">
+ <button type="button" id="developerOpen" aria-controls="developerGate developerPanel">개발자</button>
+ <div id="developerGate" hidden>
+  <label for="developerPin">개발자 비밀번호</label>
+  <div class="developerGateRow">
+   <input id="developerPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="비밀번호 입력">
+   <button id="developerUnlock" type="button">확인</button>
+  </div>
+  <p id="developerGateStatus" class="error" role="status" aria-live="polite"></p>
+ </div>
+ <div id="developerPanel" hidden aria-label="개발자 검색 진단">
+  <div class="developerPanelHead"><strong>검색 진단</strong><button id="developerClose" type="button">닫기</button></div>
+  <div class="developerGrid">
+   <div><small>API 총 호출</small><strong id="developerApiTotal">0</strong></div>
+   <div><small>첫 결과 / 검색시간</small><strong id="developerSearchDuration">—</strong></div>
+   <div><small>최근 검색 API</small><strong id="developerApiCount">—</strong></div>
+   <div><small>노선 확인 / 후보</small><strong id="developerCandidateCount">—</strong></div>
+   <div><small>오류 발생</small><strong id="developerErrorCount">0</strong></div>
+  </div>
+  <p id="developerCurrentStatus" class="muted" role="status">검색 내역 없음</p>
+  <ol id="developerHistory" class="developerHistory"></ol>
+  <button type="button" id="developerClear">진단 기록 초기화</button>
+  <p class="muted developerNotice">진단값은 현재 페이지에서만 유지됩니다. 비밀번호는 단순 메뉴 진입 제한용이며 보안 인증이 아닙니다.</p>
+ </div>
+</div>
 </section>
 <section id="heading"></section><p id="status" role="status" aria-live="polite"></p><div id="cards"></div>
 <footer>JI BUS V1.4 · 디자인 및 개발 김정인</footer>
-</main><script>
+</main><script src="diagnostics.js?v=20261122.1406"></script><script>
 /* V1.3 Build 05: check the deployed version on every page opening. */
 (async function boot(){
-  const current='20261122.1405';
+  const current='20261122.1406';
   const versionUrl=new URL('./version.json',location.href);
   versionUrl.searchParams.set('check',String(Date.now()));
   let deployed=current;
