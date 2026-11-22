@@ -57,8 +57,8 @@ const navigator={geolocation:{getCurrentPosition:success=>success({coords:{latit
  get('smartRecommend').onclick();
  for(let i=0;i<100;i++)await Promise.resolve();
  const cards=get('smartResults').children.filter(x=>x.className==='smartCard');
- assert.equal(cards.length,2);
- assert.match(get('smartStatus').textContent,/추천 경로 2개 분석/);
+ assert.equal(cards.length,1);
+ assert.match(get('smartStatus').textContent,/우선 직행 추천/);
  assert(calls.includes('getCrdntPrxmtSttnList'));
  assert(calls.includes('getSttnThrghRouteList'));
  assert(calls.includes('getRouteAcctoThrghSttnList'));
@@ -73,5 +73,5 @@ const navigator={geolocation:{getCurrentPosition:success=>success({coords:{latit
  assert.equal(app.otherTrip.from.id,'b');
  assert.equal(app.otherTrip.to.id,'z');
  assert.equal(JSON.parse(persisted.get('ji-bus-v1')).lastTrip.from.id,'b');
- console.log('JI BUS V1.2 smart UI smoke tests PASS (16 assertions)');
+ console.log('JI BUS V1.2 smart UI smoke tests PASS (16 assertions; one initial route)');
 })().catch(e=>{console.error(e);process.exitCode=1});
