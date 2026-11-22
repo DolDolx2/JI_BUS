@@ -865,7 +865,7 @@ async function searchTrip(){
   }
   // The first pass intentionally stops at the first valid forward direct route.
   // Its label is "우선 추천", never a claim of globally optimal routing.
-  const entries=[...ids],checked=new Map(),firstPassLimit=Math.min(12,entries.length);
+  const entries=[...ids],checked=new Map(),firstPassLimit=Math.min(6,entries.length);
   let chosen=null,attempted=0;
   searchProgressStep(work,'직행 가능한 첫 번째 노선을 확인하고 있습니다…');
   for(const [id,no] of entries.slice(0,firstPassLimit)){
