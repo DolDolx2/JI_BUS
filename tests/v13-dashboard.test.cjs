@@ -7,7 +7,7 @@ const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 const version=JSON.parse(fs.readFileSync(path.join(__dirname,'..','version.json'),'utf8'));
 assert.equal(version.build,'20261122.1404');
 assert.equal(version.label,'Build 04');
-assert.match(html,/V1\.4 <span class="brandDescriptor">· 청주 실시간 버스 <\\/span>· Build 04/);
+assert.match(html,/V1\.4 <span class="brandDescriptor">· 청주 실시간 버스 <\/span>· Build 04/);
 assert.match(html,/id="dashboardPanel"/);
 assert.match(html,/data-tab="home"/);
 assert.match(html,/id="clockNow"/);
