@@ -5,7 +5,7 @@ const fs=require('node:fs'),path=require('node:path');
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
 const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 const version=JSON.parse(fs.readFileSync(path.join(__dirname,'..','version.json'),'utf8'));
-assert.equal(version.build,'20261121.1307');
+assert.equal(version.build,'20261122.1401');
 assert.equal(version.label,'Build 07');
 assert.match(html,/V1\.3 · 청주 실시간 버스 · Build 07/);
 assert.match(html,/id="dashboardPanel"/);
