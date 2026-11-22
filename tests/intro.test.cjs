@@ -4,6 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
+const css=fs.readFileSync(path.join(__dirname,'..','styles.css'),'utf8');
 const scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]);
 assert.equal(scripts.length,2);
 assert.match(html,/id="introSplash"/);
@@ -16,7 +17,7 @@ assert.match(html,/id="introCountdown" aria-hidden="true">5<\/span>초 후 자�
 assert.match(html,/V1\.4 <span class="brandDescriptor">· 청주 실시간 버스 <\/span>· Build 06/);
 assert.match(scripts[1],/const current='20261122\.1406'/);
 assert.match(html,/<span id="introCountdown" aria-hidden="true">5<\/span>/);
-assert.match(html,/#introCountdown\{/);
+assert.match(css,/#introCountdown\{/);
 const init=new Function('document','window','setTimeout','clearTimeout',scripts[0]);
 function fixture(){
  const button={handlers:{},addEventListener(kind,fn){this.handlers[kind]=fn}};
