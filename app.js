@@ -15,7 +15,7 @@ const save=()=>localStorage.setItem(store,JSON.stringify(cfg));
 const arr=v=>Array.isArray(v)?v:v&&typeof v==='object'?[v]:[];
 const el=(tag,txt,cls)=>{const e=document.createElement(tag);if(txt!==undefined)e.textContent=txt;if(cls)e.className=cls;return e};
 const status=(s,err=false)=>{const e=$(tab==='settings'?'settingsStatus':'status')||$('status');e.textContent=s;e.className=err?'error':'muted'};
-const recordError=(e,context)=>{logErrors.push({at:Date.now(),context,reason:String(e.message||e).slice(0,160)});if(logErrors.length>20)logErrors.shift();window.JIBusDiagnostics?.recordError(context)};
+const recordError=(e,context)=>{logErrors.push({at:Date.now(),context,reason:String(e.message||e).slice(0,160)});if(logErrors.length>20)logErrors.shift();globalThis.JIBusDiagnostics?.recordError(context)};
 const clearRetry=()=>{if(retryTimer!==null)clearTimeout(retryTimer);retryTimer=null};
 function failureClass(e){const code=Number(e?.status);if([401,403].includes(code)||String(e?.message).includes('인증키')||String(e?.message).includes('SERVICE_KEY'))return 'auth';if(code===429)return 'limit';return 'transient'}
 function planRetry(e){recordError(e,'실시간 조회');const type=failureClass(e);if(type==='auth'){authBlocked=true;clearRetry();return '인증/승인 오류 · 환경설정을 확인하세요'}
@@ -32,7 +32,7 @@ function beginSearchProgress(title,onCancel){
  if(activeSearchProgress)cancelSearchProgress();
  const work={id:++searchProgressSequence,controllers:new Set(),onCancel,timer:null,visible:false};
  activeSearchProgress=work;
- window.JIBusDiagnostics?.start(title);
+ globalThis.JIBusDiagnostics?.start(title);
  const overlay=$('searchProgressOverlay');
  $('searchProgressTitle').textContent=title;
  $('searchProgressMessage').textContent='검색을 준비하고 있습니다…';
@@ -45,14 +45,14 @@ function beginSearchProgress(title,onCancel){
  return work
 }
 function searchProgressStep(work,message){
- if(activeSearchProgress===work){$('searchProgressMessage').textContent=message;window.JIBusDiagnostics?.step(message)}
+ if(activeSearchProgress===work){$('searchProgressMessage').textContent=message;globalThis.JIBusDiagnostics?.step(message)}
 }
 function endSearchProgress(work,cancelled=false){
  if(activeSearchProgress!==work)return;
  clearTimeout(work.timer);
  $('searchProgressOverlay').hidden=true;
  activeSearchProgress=null;
- window.JIBusDiagnostics?.finish(cancelled)
+ globalThis.JIBusDiagnostics?.finish(cancelled)
 }
 function cancelSearchProgress(){
  const work=activeSearchProgress;
@@ -69,7 +69,7 @@ async function api(service,method,params={}){
  if(!cfg.key)throw Error('환경설정에서 인증키를 입력하세요.');
  let u=new URL('https://apis.data.go.kr/1613000/'+services[service]+'/'+method);
  u.search=new URLSearchParams({serviceKey:cfg.key,cityCode:'33010',_type:'json',numOfRows:'1000',pageNo:'1',...params});
- window.JIBusDiagnostics?.recordApi(service,method);
+ globalThis.JIBusDiagnostics?.recordApi(service,method);
  const controller=new AbortController(),progress=activeSearchProgress;
  if(progress)progress.controllers.add(controller);
  const timer=setTimeout(()=>controller.abort(),15000);
@@ -224,7 +224,7 @@ function routesFor(){
 }
 function switchTab(next){
  if(activeSearchProgress)cancelSearchProgress();
- if(next!=='settings')window.JIBusDiagnostics?.lock();
+ if(next!=='settings')globalThis.JIBusDiagnostics?.lock();
  clearRetry();retryCount=0;tab=next;revision++;
  document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===next));
  $('settings').hidden=next!=='settings';
@@ -747,8 +747,8 @@ nearbyButton.onclick=()=>{
     showStopSearchState(nearbyResults,'주변에서 정류장을 찾지 못했습니다. 이름으로 검색해 주세요.');return
    }
    nearbyResults.append(el('p','가까운 정류장 '+stops.length+'개 · 출발지를 선택하세요.','muted'));
-   window.JIBusDiagnostics?.setCandidates(stops.length,stops.length);
-   window.JIBusDiagnostics?.markFirstResult();
+   globalThis.JIBusDiagnostics?.setCandidates(stops.length,stops.length);
+   globalThis.JIBusDiagnostics?.markFirstResult();
    searchProgressStep(work,'정류장별 운행 방향을 확인하고 있습니다…');
    const jobs=[];
    for(const stop of stops){
@@ -927,8 +927,8 @@ async function searchTrip(){
    });
    chosen=shortlist[0].route
   }
-  window.JIBusDiagnostics?.setCandidates(attempted,shortlist.length);
-  if(chosen)window.JIBusDiagnostics?.markFirstResult();
+  globalThis.JIBusDiagnostics?.setCandidates(attempted,shortlist.length);
+  if(chosen)globalThis.JIBusDiagnostics?.markFirstResult();
   if(token!==revision)return;
   directSearchSession={entries,checked,attempted,origin:otherTrip.from.id,destination:otherTrip.to.id};
   otherTrip.routes=chosen?[chosen]:[];
@@ -1257,8 +1257,8 @@ function runSmartSearch(showAll=false){
     fetched.forEach((result,index)=>{if(result.status==='fulfilled')arrivalMap.set(ids[index],result.value);else arrivalFailed++})
    }
    smartState.results=rankSmartCandidates(candidates,arrivalMap);
-   window.JIBusDiagnostics?.setCandidates(limited.length,candidates.length);
-   window.JIBusDiagnostics?.markFirstResult();
+   globalThis.JIBusDiagnostics?.setCandidates(limited.length,candidates.length);
+   globalThis.JIBusDiagnostics?.markFirstResult();
    showSmartResults(smartState.results,routeIds.size>limited.length||arrivalFailed>0);
    smartStatus((showAll?'추가 직행 추천':'우선 직행 추천')+' · 확인된 노선 '+smartState.results.length+'개 · 실제 도착정보 기준');
   }catch(error){
