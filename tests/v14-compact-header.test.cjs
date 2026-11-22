@@ -1,0 +1,23 @@
+// V1.4 Build 04 — compact header and redundant copy removal
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
+const version=JSON.parse(fs.readFileSync(path.join(__dirname,'..','version.json'),'utf8'));
+assert.equal(version.version,'V1.4');
+assert.equal(version.build,'20261122.1404');
+assert.equal(version.label,'Build 04');
+assert.match(html,/const current='20261122\.1404'/);
+assert.match(html,/<div class="brandLine"><h1>JI BUS<\/h1><small>V1\.4/);
+assert.match(html,/Build 04<\/small><\/div><button id="refresh"/);
+assert.match(html,/\.topbar \.brandLine\{display:flex;align-items:baseline/);
+assert.match(html,/@media\(max-width:480px\)/);
+assert.match(html,/\.topbar \.brandDescriptor\{display:none\}/);
+assert.match(html,/<div id="manualPanel" aria-label="출발지와 목적지 선택">/);
+assert.doesNotMatch(html,/<h2>출발·도착 정류장 검색<\/h2>/);
+assert.match(html,/<section id="favoritesPanel" aria-label="즐겨찾기 목록" hidden>/);
+assert.doesNotMatch(html,/<section id="favoritesPanel"[^>]*><h2>즐겨찾기<\/h2>/);
+assert.doesNotMatch(html,/저장된 구간을 선택하면 해당 경로의 버스를 검색합니다/);
+assert.match(html,/id="favoriteList"/);
+assert.match(html,/id="introCountdown"/);
+assert.match(html,/src="assets\/cheongju-splash-city\.webp"/);
+console.log('V1.4 Build 04 compact-header and copy cleanup checks PASS (17 assertions)');
