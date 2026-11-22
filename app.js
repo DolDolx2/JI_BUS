@@ -907,15 +907,29 @@ async function searchAdditionalRoutes(includeTransfer){
  button.disabled=true;
  try{
   const ids=new Map(session.entries);
-  // For transfers, include routes departing from the origin as well.
+  // Broader searches restore the original directional-stop expansion.
+  // This additional network work is NEVER part of the initial fast result.
+  const queried=new Set();
+  async function addRoutesFor(stops){
+   for(const selected of stops.slice(0,3)){
+    const expanded=await expandDirectionalStops(selected);
+    if(token!==revision)return;
+    for(const stop of expanded){
+     if(queried.has(stop.id))continue;
+     queried.add(stop.id);
+     const rows=await api('stop','getSttnThrghRouteList',{nodeid:stop.id});
+     if(token!==revision)return;
+     for(const x of rows)if(x.routeid)ids.set(String(x.routeid),String(x.routeno||'노선번호 없음'))
+    }
+   }
+  }
+  searchProgressStep(work,'동일 명칭·방향별 정류장을 추가 확인하고 있습니다…');
+  await addRoutesFor(otherTrip.toCandidates.length?otherTrip.toCandidates:[otherTrip.to]);
+  if(token!==revision)return;
   if(includeTransfer){
    searchProgressStep(work,'출발지 경유 노선을 확인하고 있습니다…');
-   const origins=otherTrip.fromCandidates.length?otherTrip.fromCandidates:[otherTrip.from];
-   for(const origin of origins.slice(0,3)){
-    for(const x of await api('stop','getSttnThrghRouteList',{nodeid:origin.id}))
-     if(x.routeid)ids.set(String(x.routeid),String(x.routeno||'노선번호 없음'));
-    if(token!==revision)return
-   }
+   await addRoutesFor(otherTrip.fromCandidates.length?otherTrip.fromCandidates:[otherTrip.from]);
+   if(token!==revision)return;
   }
   searchProgressStep(work,includeTransfer?'환승 가능한 노선들을 분석하고 있습니다…':'남은 직행 노선들을 분석하고 있습니다…');
   const all=[];
