@@ -224,6 +224,7 @@ function routesFor(){
 }
 function switchTab(next){
  if(activeSearchProgress)cancelSearchProgress();
+ if(next!=='settings')window.JIBusDiagnostics?.lock();
  clearRetry();retryCount=0;tab=next;revision++;
  document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===next));
  $('settings').hidden=next!=='settings';
@@ -746,6 +747,8 @@ nearbyButton.onclick=()=>{
     showStopSearchState(nearbyResults,'주변에서 정류장을 찾지 못했습니다. 이름으로 검색해 주세요.');return
    }
    nearbyResults.append(el('p','가까운 정류장 '+stops.length+'개 · 출발지를 선택하세요.','muted'));
+   window.JIBusDiagnostics?.setCandidates(stops.length,stops.length);
+   window.JIBusDiagnostics?.markFirstResult();
    searchProgressStep(work,'정류장별 운행 방향을 확인하고 있습니다…');
    const jobs=[];
    for(const stop of stops){
@@ -882,8 +885,11 @@ async function searchTrip(){
     const {id,variants}=result.value;
     checked.set(id,variants);
     for(const route of matchingDirect(variants)){
-     const pair=stopPairs(route.stops,otherTrip.from,otherTrip.to)[0]||
-      stopPairs(route.stops,otherTrip.fromCandidates[0],otherTrip.toCandidates[0])[0];
+     const from=otherTrip.fromCandidates.length?otherTrip.fromCandidates:[otherTrip.from];
+     const to=otherTrip.toCandidates.length?otherTrip.toCandidates:[otherTrip.to];
+     let pair=null;
+     for(const origin of from)for(const dest of to)
+      if(!pair)pair=stopPairs(route.stops,origin,dest)[0]||null;
      if(pair)candidates.push({route,boardId:route.stops[pair.i].id,rideStops:pair.j-pair.i});
     }
    });
@@ -922,6 +928,7 @@ async function searchTrip(){
    chosen=shortlist[0].route
   }
   window.JIBusDiagnostics?.setCandidates(attempted,shortlist.length);
+  if(chosen)window.JIBusDiagnostics?.markFirstResult();
   if(token!==revision)return;
   directSearchSession={entries,checked,attempted,origin:otherTrip.from.id,destination:otherTrip.to.id};
   otherTrip.routes=chosen?[chosen]:[];
@@ -1236,6 +1243,8 @@ function runSmartSearch(showAll=false){
     fetched.forEach((result,index)=>{if(result.status==='fulfilled')arrivalMap.set(ids[index],result.value);else arrivalFailed++})
    }
    smartState.results=rankSmartCandidates(candidates,arrivalMap);
+   window.JIBusDiagnostics?.setCandidates(limited.length,candidates.length);
+   window.JIBusDiagnostics?.markFirstResult();
    showSmartResults(smartState.results,routeIds.size>limited.length||arrivalFailed>0);
    smartStatus((showAll?'추가 직행 추천':'우선 직행 추천')+' · 확인된 노선 '+smartState.results.length+'개 · 실제 도착정보 기준');
   }catch(error){
