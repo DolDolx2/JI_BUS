@@ -14,9 +14,9 @@
   const latest=metrics.history[0]||null;
   const selected=active||latest;
   text('developerApiTotal',metrics.apiTotal);
-  text('developerSearchDuration',selected?
-   (selected.firstResultMs!=null?(selected.firstResultMs/1000).toFixed(1):
-   ((selected.finishedAt||clock())-selected.startedAt)/1000).toFixed(1)+'초':'—');
+  const elapsed=selected?(selected.firstResultMs!=null?selected.firstResultMs:
+   (selected.finishedAt||clock())-selected.startedAt):null;
+  text('developerSearchDuration',elapsed==null?'—':(elapsed/1000).toFixed(1)+'초');
   text('developerApiCount',selected?selected.apiCalls+'회':'—');
   text('developerCandidateCount',selected?
    selected.checked+'개 중 '+selected.candidates+'개':'—');
