@@ -3,13 +3,14 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
+const css=fs.readFileSync(path.join(__dirname,'..','styles.css'),'utf8');
 assert.match(html,/id="searchProgressOverlay"/);
 assert.match(html,/id="searchProgressMessage"/);
 assert.match(html,/id="searchProgressCancel"/);
 assert.match(html,/role="dialog"/);
 assert.match(html,/aria-modal="true"/);
 assert.match(html,/searchProgressTrack/);
-assert.match(html,/prefers-reduced-motion/);
+assert.match(css,/prefers-reduced-motion/);
 assert.match(app,/searchProgressStep\(work,'실시간 버스 도착정보를 확인하고 있습니다/);
 assert.match(app,/beginSearchProgress\('우선 추천 직행 노선을 찾고 있습니다'/);
 assert.match(app,/beginSearchProgress\('최적의 버스 경로를 찾고 있습니다'/);
