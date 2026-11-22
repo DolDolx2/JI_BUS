@@ -15,7 +15,7 @@ const save=()=>localStorage.setItem(store,JSON.stringify(cfg));
 const arr=v=>Array.isArray(v)?v:v&&typeof v==='object'?[v]:[];
 const el=(tag,txt,cls)=>{const e=document.createElement(tag);if(txt!==undefined)e.textContent=txt;if(cls)e.className=cls;return e};
 const status=(s,err=false)=>{const e=$(tab==='settings'?'settingsStatus':'status')||$('status');e.textContent=s;e.className=err?'error':'muted'};
-const recordError=(e,context)=>{logErrors.push({at:Date.now(),context,reason:String(e.message||e).slice(0,160)});if(logErrors.length>20)logErrors.shift()};
+const recordError=(e,context)=>{logErrors.push({at:Date.now(),context,reason:String(e.message||e).slice(0,160)});if(logErrors.length>20)logErrors.shift();window.JIBusDiagnostics?.recordError(context)};
 const clearRetry=()=>{if(retryTimer!==null)clearTimeout(retryTimer);retryTimer=null};
 function failureClass(e){const code=Number(e?.status);if([401,403].includes(code)||String(e?.message).includes('인증키')||String(e?.message).includes('SERVICE_KEY'))return 'auth';if(code===429)return 'limit';return 'transient'}
 function planRetry(e){recordError(e,'실시간 조회');const type=failureClass(e);if(type==='auth'){authBlocked=true;clearRetry();return '인증/승인 오류 · 환경설정을 확인하세요'}
@@ -32,6 +32,7 @@ function beginSearchProgress(title,onCancel){
  if(activeSearchProgress)cancelSearchProgress();
  const work={id:++searchProgressSequence,controllers:new Set(),onCancel,timer:null,visible:false};
  activeSearchProgress=work;
+ window.JIBusDiagnostics?.start(title);
  const overlay=$('searchProgressOverlay');
  $('searchProgressTitle').textContent=title;
  $('searchProgressMessage').textContent='검색을 준비하고 있습니다…';
@@ -44,18 +45,19 @@ function beginSearchProgress(title,onCancel){
  return work
 }
 function searchProgressStep(work,message){
- if(activeSearchProgress===work)$('searchProgressMessage').textContent=message
+ if(activeSearchProgress===work){$('searchProgressMessage').textContent=message;window.JIBusDiagnostics?.step(message)}
 }
-function endSearchProgress(work){
+function endSearchProgress(work,cancelled=false){
  if(activeSearchProgress!==work)return;
  clearTimeout(work.timer);
  $('searchProgressOverlay').hidden=true;
- activeSearchProgress=null
+ activeSearchProgress=null;
+ window.JIBusDiagnostics?.finish(cancelled)
 }
 function cancelSearchProgress(){
  const work=activeSearchProgress;
  if(!work)return;
- endSearchProgress(work);
+ endSearchProgress(work,true);
  for(const controller of work.controllers)controller.abort();
  work.controllers.clear();
  if(typeof work.onCancel==='function')work.onCancel();
@@ -67,6 +69,7 @@ async function api(service,method,params={}){
  if(!cfg.key)throw Error('환경설정에서 인증키를 입력하세요.');
  let u=new URL('https://apis.data.go.kr/1613000/'+services[service]+'/'+method);
  u.search=new URLSearchParams({serviceKey:cfg.key,cityCode:'33010',_type:'json',numOfRows:'1000',pageNo:'1',...params});
+ window.JIBusDiagnostics?.recordApi(service,method);
  const controller=new AbortController(),progress=activeSearchProgress;
  if(progress)progress.controllers.add(controller);
  const timer=setTimeout(()=>controller.abort(),15000);
@@ -220,6 +223,7 @@ function routesFor(){
  return out
 }
 function switchTab(next){
+ if(activeSearchProgress)cancelSearchProgress();
  clearRetry();retryCount=0;tab=next;revision++;
  document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===next));
  $('settings').hidden=next!=='settings';
@@ -959,11 +963,7 @@ async function searchAdditionalRoutes(includeTransfer){
 moreDirectButton.onclick=()=>searchAdditionalRoutes(false);
 transferButton.onclick=()=>searchAdditionalRoutes(true);
 $('findOther').onclick=searchTrip;
-if(validStop(cfg.lastTrip?.from)&&validStop(cfg.lastTrip?.to)){
- setTrip(cfg.lastTrip.from,cfg.lastTrip.to);
- fromControl.input.value=cfg.lastTrip.from.name;toControl.input.value=cfg.lastTrip.to.name;
- $('otherSelection').textContent='마지막 검색 구간입니다. 노선 찾기를 눌러 조회하세요.'
-}
+// New manual searches start with empty inputs. Previous routes remain in Recent Search.
 
 /* V1.2 smart recommendation: GPS + destination based direct-route candidates.
    Estimates are explicitly heuristic, not a pedestrian route or travel ETA. */
@@ -1103,6 +1103,7 @@ function showSmartResults(ranked,partial){
 let searchMode='manual';
 function setSearchMode(mode){
  const previous=searchMode;
+ if(activeSearchProgress&&previous!==mode)cancelSearchProgress();
  searchMode=mode==='smart'?'smart':'manual';
  $('smartPanel').hidden=searchMode!=='smart';
  $('manualPanel').hidden=searchMode!=='manual';
