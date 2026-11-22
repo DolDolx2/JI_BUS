@@ -12,7 +12,7 @@ assert.match(html,/searchProgressTrack/);
 assert.match(html,/prefers-reduced-motion/);
 assert.match(app,/searchProgressStep\(work,'실시간 버스 도착정보를 확인하고 있습니다/);
 assert.match(app,/beginSearchProgress\('우선 추천 직행 노선을 찾고 있습니다'/);
-assert.match(app,/beginSearchProgress\('최적의 우선 추천 직행 노선을 찾고 있습니다'/);
+assert.match(app,/beginSearchProgress\('최적의 버스 경로를 찾고 있습니다'/);
 assert.match(app,/beginSearchProgress\('주변 정류장을 찾고 있습니다'/);
 assert.match(app,/endSearchProgress\(work\)/);
 assert.match(app,/controller\.abort\(\)/);
