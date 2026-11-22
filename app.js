@@ -450,9 +450,10 @@ async function refresh(){
   $('heading').replaceChildren(el('h2','버스 검색 결과'),el('p',heading));
   $('heading').dataset.heading=heading
  }
- if(!list.length){
+ if(!list.length&&!otherTrip.transferRequested){
   arrangeCards([]);
-  status('직행 후보가 없습니다. 필요한 경우 추가 검색 또는 환승 검색을 선택하세요.');
+  status('초기 검색 범위에서 직행 후보가 없습니다. 추가 직행 또는 환승 검색을 선택하세요.');
+  return;
  }
  busy=true;$('refresh').classList.add('refreshing');$('refresh').setAttribute('aria-busy','true');
  if(!lastGood)status('실시간 조회 중…');
@@ -939,7 +940,7 @@ async function searchAdditionalRoutes(includeTransfer){
   if(token===revision&&includeTransfer)transferButton.disabled=true;
   if(token===revision&&!includeTransfer)moreDirectButton.disabled=true;
  }catch(e){if(token===revision){$('otherSelection').textContent='추가 검색 실패: '+e.message;recordError(e,'추가 검색')}}
- finally{endSearchProgress(work);if(!includeTransfer||!otherTrip.transferRequested)button.disabled=false}
+ finally{endSearchProgress(work);if(token!==revision||includeTransfer&&!otherTrip.transferRequested)button.disabled=false}
 }
 moreDirectButton.onclick=()=>searchAdditionalRoutes(false);
 transferButton.onclick=()=>searchAdditionalRoutes(true);
