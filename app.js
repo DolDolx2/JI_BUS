@@ -231,7 +231,7 @@ function switchTab(next){
  $('heading').hidden=!showManual;
  $('status').hidden=!showManual;
  $('cards').hidden=!showManual;
- $('refresh').hidden=!showManual;
+ // Header refresh remains available on every tab; only the result panels are mode-specific.
  resetView();
  if(next==='favorites')renderFavorites();
  if(next==='search'&&showManual&&otherTrip.ready)refresh();
@@ -1112,7 +1112,7 @@ function setSearchMode(mode){
  }
  const visible=tab==='search'&&searchMode==='manual';
  $('heading').hidden=!visible;$('status').hidden=!visible;
- $('cards').hidden=!visible;$('refresh').hidden=!visible;
+ $('cards').hidden=!visible;
  if(previous!==searchMode){revision++;resetView();if(visible&&otherTrip.ready)refresh()}
 }
 const smartToControl=stopSearchControl($('smartToResults'),stops=>{
@@ -1328,7 +1328,23 @@ function updateDashboardClock(){
 updateDashboardClock();
 setInterval(updateDashboardClock,30000);
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
-$('refresh').onclick=()=>{resetFailures();refresh()};
+// The header refresh is global. Only manual routes use the 15-second route refresh.
+$('refresh').onclick=()=>{
+ resetFailures();
+ if(tab==='search'&&searchMode==='manual'){
+  if(otherTrip.ready)refresh();
+  else $('otherSelection').textContent='출발·도착 정류장을 선택하고 노선 찾기를 눌러주세요.';
+ }else if(tab==='search'&&searchMode==='smart'){
+  if(smartState.to)$('smartRecommend').click();
+  else smartStatus('목적지 정류장을 선택한 후 추천받기를 눌러주세요.');
+ }else if(tab==='home'){
+  updateDashboardClock();
+  weatherCache.at=0;
+  loadCheongjuWeather();
+  renderRecentTrips();
+ }else if(tab==='favorites')renderFavorites();
+ else $('settingsStatus').textContent='현재 설정 정보가 표시되어 있습니다.';
+};
 setInterval(()=>{if(!document.hidden&&retryTimer===null&&!authBlocked)refresh()},15000);
 setInterval(()=>{if(!document.hidden){const now=Date.now();document.querySelectorAll('[data-eta]').forEach(e=>tickEta(e,now))}},1000);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)clearRetry();else{resetFailures();refresh()}});

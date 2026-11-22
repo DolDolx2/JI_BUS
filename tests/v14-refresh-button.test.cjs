@@ -1,0 +1,22 @@
+// V1.4 Build 05 — always-visible header refresh and contextual actions
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
+const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
+const version=JSON.parse(fs.readFileSync(path.join(__dirname,'..','version.json'),'utf8'));
+assert.equal(version.build,'20261122.1405');
+assert.equal(version.label,'Build 05');
+assert.match(html,/aria-label="현재 화면 갱신"/);
+assert.match(html,/class="refreshLabel">갱신/);
+assert.match(html,/\.topbar #refresh\{[\s\S]*display:inline-flex!important/);
+assert.match(html,/@media\(max-width:480px\)\{[\s\S]*\.topbar #refresh \.refreshLabel\{display:none\}/);
+assert.match(html,/const current='20261122\.1405'/);
+assert.doesNotMatch(app,/\$\('refresh'\)\.hidden\s*=/);
+assert.match(app,/if\(tab==='search'&&searchMode==='manual'\)/);
+assert.match(app,/else if\(tab==='search'&&searchMode==='smart'\)/);
+assert.match(app,/else if\(tab==='home'\)/);
+assert.match(app,/weatherCache\.at=0;/);
+assert.match(app,/loadCheongjuWeather\(\)/);
+assert.match(app,/else if\(tab==='favorites'\)renderFavorites\(\)/);
+assert.match(app,/\$\('refresh'\)\.onclick=\(\)=>\{/);
+console.log('V1.4 Build 05 visible refresh contract PASS (15 checks)');
