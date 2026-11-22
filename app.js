@@ -526,7 +526,7 @@ function tripSummary(){
 function setTrip(from,to,alt){
  otherTrip.from=from;otherTrip.to=to;
  otherTrip.fromCandidates=[from];otherTrip.toCandidates=[to,...(validStop(alt)?[alt]:[])];
- otherTrip.ready=false;otherTrip.routes=[];
+ otherTrip.ready=false;otherTrip.routes=[];directSearchSession=null;progressiveActions.hidden=true;otherTrip.transferRequested=false;
  $('otherSelection').textContent=tripSummary();
  $('saveTrip').disabled=!(validStop(from)&&validStop(to));
  revision++;resetView();arrangeCards([]);
@@ -601,7 +601,7 @@ $('saveKey').onclick=async()=>{
  finally{btn.disabled=false;btn.textContent='인증키 저장 및 확인'}
 };
 const fromControl=stopSearchControl($('otherFromResults'),stops=>{
- otherTrip.from=stops[0];otherTrip.fromCandidates=stops;otherTrip.ready=false;otherTrip.routes=[];
+ otherTrip.from=stops[0];otherTrip.fromCandidates=stops;otherTrip.ready=false;otherTrip.routes=[];directSearchSession=null;progressiveActions.hidden=true;otherTrip.transferRequested=false;
  $('otherSelection').textContent=tripSummary();$('saveTrip').disabled=!(otherTrip.from&&otherTrip.to);
  revision++;resetView()
 });
@@ -787,14 +787,14 @@ nearbyButton.onclick=()=>{
  },{enableHighAccuracy:true,timeout:12000,maximumAge:60000})
 }
 const toControl=stopSearchControl($('otherToResults'),stops=>{
- otherTrip.to=stops[0];otherTrip.toCandidates=stops;otherTrip.ready=false;otherTrip.routes=[];
+ otherTrip.to=stops[0];otherTrip.toCandidates=stops;otherTrip.ready=false;otherTrip.routes=[];directSearchSession=null;progressiveActions.hidden=true;otherTrip.transferRequested=false;
  $('otherSelection').textContent=tripSummary();$('saveTrip').disabled=!(otherTrip.from&&otherTrip.to);
  revision++;resetView()
 });
 for(const [name,control] of [['from',fromControl],['to',toControl]])control.input.addEventListener('input',()=>{
  if(name==='from'){++nearbySerial;nearbyButton.disabled=false;nearbyResults.replaceChildren()}
  if(otherTrip[name]?.name===control.input.value.trim())return;
- otherTrip[name]=null;otherTrip[name+'Candidates']=[];otherTrip.ready=false;otherTrip.routes=[];
+ otherTrip[name]=null;otherTrip[name+'Candidates']=[];otherTrip.ready=false;otherTrip.routes=[];directSearchSession=null;progressiveActions.hidden=true;otherTrip.transferRequested=false;
  $('otherSelection').textContent='입력한 정류장을 검색 결과에서 선택하세요';
  $('saveTrip').disabled=true;revision++;resetView()
 });
@@ -802,7 +802,7 @@ $('swapOther').onclick=()=>{
  const from=otherTrip.from,fromCandidates=otherTrip.fromCandidates;
  otherTrip.from=otherTrip.to;otherTrip.fromCandidates=otherTrip.toCandidates;
  otherTrip.to=from;otherTrip.toCandidates=fromCandidates;
- otherTrip.ready=false;otherTrip.routes=[];revision++;resetView();
+ otherTrip.ready=false;otherTrip.routes=[];directSearchSession=null;progressiveActions.hidden=true;otherTrip.transferRequested=false;revision++;resetView();
  fromControl.input.value=otherTrip.from?.name||'';toControl.input.value=otherTrip.to?.name||'';
  $('otherSelection').textContent=tripSummary();$('saveTrip').disabled=!(otherTrip.from&&otherTrip.to)
 };
