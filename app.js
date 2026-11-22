@@ -452,7 +452,7 @@ async function refresh(){
  const rev=revision,list=routesFor();
  const heading=(otherTrip.from?.name||'출발 미선택')+' → '+(otherTrip.to?.name||'도착 미선택');
  if($('heading').dataset.heading!==heading){
-  $('heading').replaceChildren(el('h2','버스 검색 결과'),el('p',heading));
+  $('heading').replaceChildren(el('strong',heading));
   $('heading').dataset.heading=heading
  }
  if(!list.length&&!otherTrip.transferRequested){
