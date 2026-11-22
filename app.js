@@ -867,21 +867,61 @@ async function searchTrip(){
    if(token!==revision)return;
    for(const item of items)if(item.routeid)ids.set(String(item.routeid),String(item.routeno||'노선번호 없음'))
   }
-  // The first pass intentionally stops at the first valid forward direct route.
-  // Its label is "우선 추천", never a claim of globally optimal routing.
+  // A bounded first pass evaluates up to three distinct usable routes.
+  // Initial search is a useful recommendation, not a guaranteed global optimum.
   const entries=[...ids],checked=new Map(),firstPassLimit=Math.min(6,entries.length);
-  let chosen=null,attempted=0;
-  searchProgressStep(work,'직행 가능한 첫 번째 노선을 확인하고 있습니다…');
-  for(const [id,no] of entries.slice(0,firstPassLimit)){
-   attempted++;
-   try{
-    const variants=await cachedDirectVariants(id,no);
+  const candidates=[];let chosen=null,attempted=0;
+  searchProgressStep(work,'직행 후보 최대 3개를 비교하고 있습니다…');
+  for(let offset=0;offset<firstPassLimit&&new Set(candidates.map(x=>x.route.id)).size<3;offset+=3){
+   const batch=entries.slice(offset,Math.min(offset+3,firstPassLimit));
+   const outcomes=await Promise.allSettled(batch.map(async([id,no])=>({id,variants:await cachedDirectVariants(id,no)})));
+   if(token!==revision)return;
+   outcomes.forEach((result,index)=>{
+    attempted++;
+    if(result.status!=='fulfilled'){recordError(result.reason,'우선 직행 노선');return}
+    const {id,variants}=result.value;
     checked.set(id,variants);
-    const matches=matchingDirect(variants);
-    if(matches.length){chosen=matches.sort((a,b)=>a.stops.length-b.stops.length)[0];break}
-   }catch(e){recordError(e,'우선 직행 노선')}
-   if(token!==revision)return
+    for(const route of matchingDirect(variants)){
+     const pair=stopPairs(route.stops,otherTrip.from,otherTrip.to)[0]||
+      stopPairs(route.stops,otherTrip.fromCandidates[0],otherTrip.toCandidates[0])[0];
+     if(pair)candidates.push({route,boardId:route.stops[pair.i].id,rideStops:pair.j-pair.i});
+    }
+   });
   }
+  if(token!==revision)return;
+  const shortlist=[];const used=new Set();
+  for(const candidate of candidates){
+   if(used.has(candidate.route.id))continue;
+   used.add(candidate.route.id);shortlist.push(candidate);
+   if(shortlist.length===3)break
+  }
+  const arrivals=new Map();
+  if(shortlist.length){
+   searchProgressStep(work,'직행 후보의 실시간 도착시간을 비교하고 있습니다…');
+   const boardIds=[...new Set(shortlist.map(x=>x.boardId))];
+   const results=await Promise.allSettled(boardIds.map(id=>
+    api('arrival','getSttnAcctoArvlPrearngeInfoList',{nodeId:id})));
+   if(token!==revision)return;
+   results.forEach((result,i)=>{
+    if(result.status==='fulfilled')arrivals.set(boardIds[i],result.value);
+    else recordError(result.reason,'추천 도착시간')
+   });
+   const score=c=>{
+    const rows=arrivals.get(c.boardId)||[];
+    const matched=arrivalsFor(rows,c.route.id).filter(x=>{
+     const dir=x.updowncd??x.updowncode;
+     return !c.route.direction||dir==null||String(dir)===c.route.direction
+    });
+    return Number(matched[0]?.arrtime??Infinity)
+   };
+   shortlist.sort((a,b)=>{
+    const ae=score(a),be=score(b);
+    return (Number.isFinite(ae)?0:1)-(Number.isFinite(be)?0:1)||
+     ae-be||a.rideStops-b.rideStops||a.route.no.localeCompare(b.route.no,'ko',{numeric:true})
+   });
+   chosen=shortlist[0].route
+  }
+  window.JIBusDiagnostics?.setCandidates(attempted,shortlist.length);
   if(token!==revision)return;
   directSearchSession={entries,checked,attempted,origin:otherTrip.from.id,destination:otherTrip.to.id};
   otherTrip.routes=chosen?[chosen]:[];
@@ -889,7 +929,7 @@ async function searchTrip(){
   rememberTrip(otherTrip.from,otherTrip.to);
   progressiveActions.hidden=false;
   $('otherSelection').textContent=chosen?
-   '우선 직행 노선 '+chosen.no+'번 확인 · 추가 노선 및 환승은 선택 시 조회':
+   '비교된 직행 후보 '+shortlist.length+'개 중 '+chosen.no+'번 우선 추천 · 다른 노선 및 환승은 선택 시 조회':
    '초기 '+attempted+'개 노선에서 직행을 찾지 못했습니다. 추가 직행 또는 환승을 검색할 수 있습니다.';
   if(chosen){
    searchProgressStep(work,'추천 노선의 실시간 도착정보를 확인하고 있습니다…');
