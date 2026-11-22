@@ -1114,7 +1114,7 @@ function showSmartResults(ranked,partial){
   if(unique.length>=(smartState.showAll?5:1))break
  }
  unique.forEach((item,index)=>{
-  const card=el('article',undefined,'smartCard compactSmartCard');
+  const card=el('article',undefined,'smartCard');card.classList.add('compactSmartCard');
   const head=el('div',undefined,'smartCompactHead');
   const id=el('div',undefined,'smartCompactIdentity');
   id.append(el('span',index===0?'우선 추천':'추천 '+(index+1),'smartRouteBadge'),
@@ -1138,7 +1138,6 @@ function showSmartResults(ranked,partial){
    $('otherSelection').textContent=item.route.no+'번 · '+item.board.name+' → '+item.exit.name;
    setSearchMode('manual');switchTab('search')
   };
-  card.append(button);
   const detail=el('details',undefined,'smartDetails');
   detail.append(el('summary','경로 상세 · 지도'));
   detail.append(el('p',(directionLabel(item.route)||'운행방향 미표시')+
@@ -1157,7 +1156,7 @@ function showSmartResults(ranked,partial){
   if(advice)detail.append(el('p',advice.label,'leaveAdvice'));
   detail.append(el('p','도보 및 이동시간은 추정치이며 실제 경로·소요시간과 다를 수 있습니다.','muted'));
   attachMapLinks(detail,item.board);
-  card.append(detail);host.append(card)
+  card.append(detail,button);host.append(card)
  });
  if(partial)host.append(el('p','일부 정류장 도착정보를 확인하지 못해 추천 순위가 달라질 수 있습니다.','muted'));
  moreSmartButton.hidden=smartState.showAll
