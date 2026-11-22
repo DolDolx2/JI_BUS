@@ -14,7 +14,7 @@ assert.match(html,/alt="청주시 시내버스와 도시 풍경"/);
 assert.doesNotMatch(html,/<animateMotion\b/);
 assert.match(html,/5초 후 자동으로 이동합니다/);
 assert.match(html,/V1\.3 · 청주 실시간 버스 · Build 07/);
-assert.match(scripts[1],/const current='20261121\.1307'/);
+assert.match(scripts[1],/const current='20261122\.1401'/);
 const init=new Function('document','window','setTimeout','clearTimeout',scripts[0]);
 function fixture(reduced=false){
  const button={handlers:{},addEventListener(kind,fn){this.handlers[kind]=fn}};
