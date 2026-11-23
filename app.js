@@ -379,16 +379,30 @@ async function getRouteInfo(id){
  try{const rows=await api('route','getRouteInfoIem',{routeId:id});const info=rows[0]||null;routeInfoCache.set(id,{info,at:Date.now()});return info}
  catch(e){recordError(e,'노선 기본정보');routeInfoCache.set(id,{info:cached?.info||null,at:Date.now()-21000000});return cached?.info||null}
 }
+// A moving bus on the route does not imply that TAGO publishes an ETA
+// for this boarding stop. Report the two facts independently.
+function noArrivalVehicleStatus(r,location){
+ const positions=Array.isArray(location?.v)?location.v:[];
+ if(!positions.length)return location?.e?
+  '차량 위치 조회 실패 · 탑승 정류장 도착예정시간 미제공':
+  '탑승 정류장 도착예정시간 미제공 · 운행 차량 위치 미확인';
+ const matched=positions.map(v=>vehicleIndex(r,v)).filter(i=>i>=0);
+ const approaching=matched.filter(i=>i<=r.i);
+ if(approaching.length)return '탑승 방향 차량 '+matched.length+'대 위치 확인 · 정류장 접근 후보 '+approaching.length+'대 · 도착예정시간 미제공';
+ if(matched.length)return '탑승 방향 차량 '+matched.length+'대 위치 확인 · 현재 정류장 접근 차량 미확인 · 도착예정시간 미제공';
+ return '노선 차량 '+positions.length+'대 위치 확인 · 탑승 방향 미확인 · 도착예정시간 미제공'
+}
 function directCard(r,a,location,first,at,info){
  const key='direct:'+routeKey(r),o=ensureCard(key,r.no),av=arrivalsFor(a,r.id),v=av[0];
  renderStopFlow(o.path,r.stops[r.i].name,r.stops[r.j].name);
- textTo(o.meta,v?'남은 정류장 '+(v.arrprevstationcnt??'미제공')+' · 다음 차량 '+(av[1]?Math.ceil(Number(av[1].arrtime)/60)+'분 후':'정보 없음'):'현재 도착 예정 차량 없음');textTo(o.schedule,v?'':operatingText(info));
+ textTo(o.meta,v?'남은 정류장 '+(v.arrprevstationcnt??'미제공')+' · 다음 차량 '+(av[1]?Math.ceil(Number(av[1].arrtime)/60)+'분 후':'정보 없음'):noArrivalVehicleStatus(r,location));textTo(o.schedule,v?'':operatingText(info));
  textTo(o.flag,(directionLabel(r)?directionLabel(r)+' · ':'')+(first&&v?'가장 먼저 도착 · ':'')+'직행 노선');
  setEta(o.eta,v?.arrtime,at);
+ if(!v)o.eta.textContent='예정시간 미제공';
  if(!o.timeline){o.timeline=makeTimeline(r);o.details.append(o.timeline.wrap)}
  updateTimeline(o.timeline,r,location.v,location.e||'');
  if(!o.naverMapLinks){o.naverMapLinks=el('div',undefined,'externalMaps');o.box.append(o.naverMapLinks)}
- attachNaverTransitLinks(o.naverMapLinks,r.stops[r.i],r.stops[r.j]);
+ attachWalkingMapLinks(o.naverMapLinks,r.stops[r.i]);
  return key
 }
 
@@ -437,7 +451,7 @@ async function showTransfers(origin,arrivalRows,rev,at){
   setEta(o.eta,arrivalsFor(first.rows,p.first.id)[0]?.arrtime,first.at);
   textTo(o.summary,'두 차량 위치 · 현재 기준');
   if(!o.naverMapLinks){o.naverMapLinks=el('div',undefined,'externalMaps');o.box.append(o.naverMapLinks)}
-  attachNaverTransitLinks(o.naverMapLinks,p.first.stops[p.first.i],p.second.stops[p.second.j]);
+  attachWalkingMapLinks(o.naverMapLinks,p.first.stops[p.first.i]);
   if(!o.legs.length){for(let i=0;i<2;i++){const d=el('details'),s=el('summary'),v=el('span',undefined,'legEta'),t=makeTimeline(i?p.second:p.first);d.append(s,v,t.wrap);o.details.append(d);o.legs.push({d,s,v,t})}}
   for(const [i,r] of [p.first,p.second].entries()){const leg=o.legs[i],l=loc.get(r.id);textTo(leg.s,(i+1)+'구간 · '+r.no+'번'+(directionLabel(r)?' · '+directionLabel(r):'')+' · '+r.stops[r.i].name+' 탑승');
    setEta(leg.v,i?arrivalsFor(second.rows,r.id)[0]?.arrtime:arrivalsFor(first.rows,r.id)[0]?.arrtime,i?second.at:first.at);
@@ -1102,30 +1116,20 @@ function stopHasMapCoordinates(stop){
  return Number.isFinite(Number(stop?.lat))&&Number.isFinite(Number(stop?.lon))&&
   Number(stop.lat)>=33&&Number(stop.lat)<=39&&Number(stop.lon)>=124&&Number(stop.lon)<=132
 }
-// Native NAVER Maps transit directions with independent browser fallback.
-function naverTransitUrls(from,to){
- if(!stopHasMapCoordinates(from)||!stopHasMapCoordinates(to))return null;
- return {
-  native:'nmap://route/public?slat='+Number(from.lat)+'&slng='+Number(from.lon)+
-   '&sname='+encodeURIComponent(from.name||'출발 정류장')+
-   '&dlat='+Number(to.lat)+'&dlng='+Number(to.lon)+
-   '&dname='+encodeURIComponent(to.name||'도착 정류장')+
-   '&appname='+encodeURIComponent('https://doldolx2.github.io/JI_BUS/'),
-  web:'https://map.naver.com/p/search/'+encodeURIComponent('청주시 '+(to.name||'버스 정류장'))
- }
-}
-function attachNaverTransitLinks(host,from,to){
- const pair=String(from?.id||'')+'|'+String(to?.id||'');
- if(host.dataset.naverMapPair===pair)return;
- host.replaceChildren();
- host.dataset.naverMapPair=pair;
- const urls=naverTransitUrls(from,to);
- if(!urls)return;
- const app=el('a','네이버지도 길찾기','mapAppLink');
- app.href=urls.native;app.rel='noopener';
- app.setAttribute('aria-label','네이버지도 앱에서 '+from.name+'에서 '+to.name+'까지 대중교통 길찾기');
- const web=el('a','지도 웹 보기','mapAppLink');
- web.href=urls.web;web.target='_blank';web.rel='noopener noreferrer';
+// A map link always means walking from the phone's present location to
+// the boarding stop. Never pass the bus route's alighting stop to Maps.
+function attachWalkingMapLinks(host,board){
+ const key=String(board?.id||'')+'|'+String(board?.lat||'')+'|'+String(board?.lon||'');
+ if(host.dataset.walkingMapStop===key)return;
+ host.replaceChildren();host.dataset.walkingMapStop=key;
+ const urls=nativeMapUrls(board);
+ if(!urls){host.append(el('span','탑승 정류장 좌표를 확인할 수 없습니다.','muted'));return}
+ const app=el('a','정류장까지 도보 길찾기','mapAppLink');
+ app.href=urls.naver;app.rel='noopener';
+ app.setAttribute('aria-label','현재 위치에서 '+board.name+' 정류장까지 네이버지도 도보 길찾기');
+ const web=el('a','정류장 위치 웹 보기','mapAppLink');
+ web.href='https://map.naver.com/p/search/'+encodeURIComponent('청주시 '+(board.name||'버스 정류장'));
+ web.target='_blank';web.rel='noopener noreferrer';
  host.append(app,web)
 }
 function nativeMapUrls(stop){
@@ -1201,9 +1205,7 @@ function showSmartResults(ranked,partial){
   if(advice)detail.append(el('p',advice.label,'leaveAdvice'));
   detail.append(el('p','도보 및 이동시간은 추정치이며 실제 경로·소요시간과 다를 수 있습니다.','muted'));
   attachMapLinks(detail,item.board);
-  const transitLinks=el('div',undefined,'externalMaps');
-  attachNaverTransitLinks(transitLinks,item.board,item.exit);
-  detail.append(transitLinks);
+
   card.append(detail,button);host.append(card)
  });
  if(partial)host.append(el('p','일부 정류장 도착정보를 확인하지 못해 추천 순위가 달라질 수 있습니다.','muted'));
