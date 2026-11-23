@@ -1394,11 +1394,12 @@ async function loadCheongjuWeather(){
    const prior=regionCache.label&&weatherNearSamePlace(regionCache,location)?regionCache.label:'';
    showWeatherRegion(prior||'지역 확인 중…')
   }
+  let fallbackWeather=false;
   const regionTask=gps?resolveWeatherRegion(location).then(label=>{
-   showWeatherRegion(label)
+   if(!fallbackWeather)showWeatherRegion(label)
   }).catch(error=>{
    recordError(error,'지역명 조회');
-   showWeatherRegion('위치 확인됨 · 지역명 미확인')
+   if(!fallbackWeather)showWeatherRegion('위치 확인됨 · 지역명 미확인')
   }):Promise.resolve();
   if(weatherCache.text&&weatherCache.source===source&&Date.now()-weatherCache.at<WEATHER_TTL
    &&weatherNearSamePlace(weatherCache,location)){
@@ -1418,7 +1419,7 @@ async function loadCheongjuWeather(){
      weatherCache.at=Date.now();weatherCache.text=fallback;
      weatherCache.lat=CHEONGJU_WEATHER.lat;weatherCache.lon=CHEONGJU_WEATHER.lon;
      weatherCache.source='city';host.textContent=fallback;
-     showWeatherRegion('청주시 기준');
+     fallbackWeather=true;showWeatherRegion('청주시 기준');
      await regionTask;return
     }catch(fallbackError){recordError(fallbackError,'날씨 정보')}
    }
