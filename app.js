@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const store='ji-bus-v1';
-let cfg={key:'',stops:{},favorites:[],routes:[],last:'',tripFavorites:[],lastTrip:null};
+let cfg={stops:{},favorites:[],routes:[],last:'',tripFavorites:[],lastTrip:null};
 try{cfg={...cfg,...JSON.parse(localStorage.getItem(store)||'{}')}}catch{}
 if(!cfg.stops||typeof cfg.stops!=='object')cfg.stops={};
 if(!Array.isArray(cfg.routes))cfg.routes=[];
@@ -18,7 +18,7 @@ const status=(s,err=false)=>{const e=$(tab==='settings'?'settingsStatus':'status
 const recordError=(e,context)=>{logErrors.push({at:Date.now(),context,reason:String(e.message||e).slice(0,160)});if(logErrors.length>20)logErrors.shift();globalThis.JIBusDiagnostics?.recordError(context)};
 const clearRetry=()=>{if(retryTimer!==null)clearTimeout(retryTimer);retryTimer=null};
 function failureClass(e){const code=Number(e?.status);if([401,403].includes(code)||String(e?.message).includes('인증키')||String(e?.message).includes('SERVICE_KEY'))return 'auth';if(code===429)return 'limit';return 'transient'}
-function planRetry(e){recordError(e,'실시간 조회');const type=failureClass(e);if(type==='auth'){authBlocked=true;clearRetry();return '인증/승인 오류 · 환경설정을 확인하세요'}
+function planRetry(e){recordError(e,'실시간 조회');const type=failureClass(e);if(type==='auth'){authBlocked=true;clearRetry();return '버스정보 서비스 인증 오류 · 잠시 후 다시 시도하세요'}
  retryCount++;const delay=type==='limit'?Math.max(60000,Number(e.retryAfterMs)||0):retryCount===1?5000:retryCount===2?15000:Math.min(60000,30000*Math.pow(2,Math.max(0,retryCount-3)));clearRetry();
  retryTimer=setTimeout(()=>{retryTimer=null;if(!document.hidden&&tab!=='settings')refresh()},delay);return '자동 재시도 '+Math.round(delay/1000)+'초 후';
 }
@@ -64,18 +64,17 @@ function cancelSearchProgress(){
 }
 $('searchProgressCancel').onclick=cancelSearchProgress;
 
-const services={stop:'BusSttnInfoInqireService',route:'BusRouteInfoInqireService',arrival:'ArvlInfoInqireService',location:'BusLcInfoInqireService'};
+const BUS_API_BASE='https://ji-bus-api-siga0411-6093.vercel.app';
 async function api(service,method,params={}){
- if(!cfg.key)throw Error('환경설정에서 인증키를 입력하세요.');
- let u=new URL('https://apis.data.go.kr/1613000/'+services[service]+'/'+method);
- u.search=new URLSearchParams({serviceKey:cfg.key,cityCode:'33010',_type:'json',numOfRows:'1000',pageNo:'1',...params});
+ const u=new URL(BUS_API_BASE+'/api/bus');
+ u.search=new URLSearchParams({service,method,...params});
  globalThis.JIBusDiagnostics?.recordApi(service,method);
  const controller=new AbortController(),progress=activeSearchProgress;
  if(progress)progress.controllers.add(controller);
  const timer=setTimeout(()=>controller.abort(),15000);
  let res;try{res=await fetch(u,{signal:controller.signal,cache:'no-store'})}
  finally{clearTimeout(timer);if(progress)progress.controllers.delete(controller)}
- if(progress&&activeSearchProgress!==progress)throw new DOMException('검색이 취소되었습니다.','AbortError');if(!res.ok){const e=Error('API HTTP '+res.status+' — 인증키 및 활용 승인 확인');e.status=res.status;
+ if(progress&&activeSearchProgress!==progress)throw new DOMException('검색이 취소되었습니다.','AbortError');if(!res.ok){const e=Error('버스정보 서비스 응답 오류 (HTTP '+res.status+')');e.status=res.status;
  if(res.status===429){const retry=res.headers.get('Retry-After');if(retry){const n=Number(retry);e.retryAfterMs=Number.isFinite(n)?Math.max(0,n*1000):Math.max(0,Date.parse(retry)-Date.now())}}
  throw e}
  let json=await res.json(),h=json.response?.header,body=json.response?.body;
@@ -590,21 +589,6 @@ function renderFavorites(){
   actions.append(open,rename,up,down,remove);card.append(actions);host.append(card)
  })
 }
-$('key').value=cfg.key;
-const keyFeedback=el('p');keyFeedback.setAttribute('role','status');keyFeedback.setAttribute('aria-live','polite');$('saveKey').after(keyFeedback);
-function keyMessage(message,error=false){keyFeedback.textContent=message;keyFeedback.className=error?'error':'muted'}
-if(cfg.key)keyMessage('인증키 저장됨 · 다시 입력할 필요 없습니다');
-const toggle=el('button','인증키 보기');toggle.type='button';$('saveKey').before(toggle);
-toggle.onclick=()=>{const input=$('key');input.type=input.type==='password'?'text':'password';toggle.textContent=input.type==='password'?'인증키 보기':'인증키 숨기기'};
-$('saveKey').onclick=async()=>{
- const btn=$('saveKey'),key=$('key').value.trim();
- if(!key){keyMessage('일반 인증키(Decoding)를 입력하세요.',true);return}
- btn.disabled=true;btn.textContent='연결 확인 중…';
- cfg.key=key;save();resetFailures();keyMessage('인증키 저장 완료 · 연결 확인 중…');
- try{await api('arrival','getCtyCodeList');keyMessage('인증키 저장 및 API 연결 확인 완료')}
- catch(e){keyMessage('인증키 저장 완료 · 연결 확인 실패: '+e.message,true)}
- finally{btn.disabled=false;btn.textContent='인증키 저장 및 확인'}
-};
 const fromControl=stopSearchControl($('otherFromResults'),stops=>{
  otherTrip.from=stops[0];otherTrip.fromCandidates=stops;otherTrip.ready=false;otherTrip.routes=[];directSearchSession=null;progressiveActions.hidden=true;otherTrip.transferRequested=false;
  $('otherSelection').textContent=tripSummary();$('saveTrip').disabled=!(otherTrip.from&&otherTrip.to);
@@ -722,9 +706,6 @@ nearbyButton.onclick=()=>{
  nearbyResults.replaceChildren();
  if(!navigator.geolocation){
   showStopSearchState(nearbyResults,'위치 검색을 지원하지 않습니다. 정류장 이름으로 검색해 주세요.',true);return
- }
- if(!cfg.key){
-  showStopSearchState(nearbyResults,'설정에서 API 인증키를 먼저 등록하세요.',true);return
  }
  const work=beginSearchProgress('주변 정류장을 찾고 있습니다',()=>{
   ++nearbySerial;nearbyButton.disabled=false;nearbyResults.replaceChildren();
@@ -851,7 +832,6 @@ async function searchTrip(){
  if(!validStop(otherTrip.from)||!validStop(otherTrip.to)){
   $('otherSelection').textContent='출발·도착 정류장을 모두 선택하세요';return
  }
- if(!cfg.key){$('otherSelection').textContent='설정에서 API 인증키를 먼저 등록하세요';return}
  const button=$('findOther'),token=++revision;
  const work=beginSearchProgress('우선 추천 직행 노선을 찾고 있습니다',()=>{
   revision++;otherTrip.ready=false;otherTrip.routes=[];directSearchSession=null;button.disabled=false;
@@ -1198,7 +1178,6 @@ moreSmartButton.onclick=()=>runSmartSearch(true);
 $('smartRecommend').onclick=()=>runSmartSearch(false);
 function runSmartSearch(showAll=false){
  if(!smartState.to){smartStatus('목적지 정류장을 먼저 선택하세요.',true);return}
- if(!cfg.key){smartStatus('설정에서 API 인증키를 등록하세요.',true);return}
  if(!navigator.geolocation){smartStatus('GPS를 사용할 수 없습니다. 직접 검색을 이용해 주세요.',true);return}
  const token=++smartState.request,button=showAll?moreSmartButton:$('smartRecommend');
  smartState.showAll=showAll;
@@ -1326,14 +1305,51 @@ function weatherRequestUrl(location){
  return 'https://api.open-meteo.com/v1/forecast?'+params.toString()
 }
 async function fetchWeatherAt(location){
- const response=await fetch(weatherRequestUrl(location),{cache:'no-store'});
- if(!response.ok)throw Error('날씨 HTTP '+response.status);
- const data=await response.json();
- const value=data?.current?.temperature_2m,weather=data?.current?.weather_code;
- const temp=Number(value),code=Number(weather);
- if(value==null||weather==null||!Number.isFinite(temp)||!Number.isFinite(code))throw Error('현재 날씨 데이터 없음');
- return Math.round(temp)+'°C · '+weatherDescription(code)
+ const kmaUrl=new URL(BUS_API_BASE+'/api/temperature');
+ kmaUrl.search=new URLSearchParams({lat:String(location.lat),lon:String(location.lon)});
+ // KMA T1H is the temperature source. Open-Meteo supplies the sky state
+ // and is only used for temperature when KMA is unavailable.
+ const openMeteo=fetch(weatherRequestUrl(location),{cache:'no-store'}).then(async response=>{
+  if(!response.ok)throw Error('Open-Meteo HTTP '+response.status);
+  const data=await response.json();
+  const temp=Number(data?.current?.temperature_2m);
+  const code=Number(data?.current?.weather_code);
+  if(data?.current?.temperature_2m==null||!Number.isFinite(temp))throw Error('Open-Meteo 기온 없음');
+  return {temp,code}
+ });
+ const kma=fetch(kmaUrl,{cache:'no-store'}).then(async response=>{
+  if(!response.ok)throw Error('기상청 HTTP '+response.status);
+  const data=await response.json();
+  const value=Number(data?.temperature);
+  if(data?.source!=='KMA'||data.temperature==null||!Number.isFinite(value))throw Error('기상청 기온 없음');
+  if(!/^\d{8}$/.test(data.baseDate)||!/^\d{4}$/.test(data.baseTime))throw Error('기상청 기준시각 없음');
+  const base=data.baseDate,clock=data.baseTime;
+  const observation=new Date(base.slice(0,4)+'-'+base.slice(4,6)+'-'+base.slice(6,8)+'T'+clock.slice(0,2)+':'+clock.slice(2,4)+':00+09:00');
+  const age=Date.now()-observation.getTime();
+  if(!Number.isFinite(age)||age< -10*60*1000||age>3*60*60*1000)throw Error('기상청 관측시각 경과');
+  return {temp:value,baseDate:base,baseTime:clock}
+ });
+ const [kmaResult,skyResult]=await Promise.allSettled([kma,openMeteo]);
+ if(kmaResult.status==='rejected')recordError(kmaResult.reason,'기상청 기온');
+ if(skyResult.status==='rejected')recordError(skyResult.reason,'Open-Meteo 날씨');
+ if(kmaResult.status==='rejected'&&skyResult.status==='rejected')
+  throw Error('기상청과 대체 날씨 조회 모두 실패했습니다.');
+ const primary=kmaResult.status==='fulfilled';
+ const temp=primary?kmaResult.value.temp:skyResult.value.temp;
+ const sky=skyResult.status==='fulfilled'?skyResult.value.code:NaN;
+ const source=primary?'기상청':'Open-Meteo 대체';
+ const skyLabel=Number.isFinite(sky)?weatherDescription(sky):'날씨 상태 확인 중';
+ const label=Math.round(temp)+'°C · '+skyLabel;
+ const detail=primary
+  ?kmaResult.value.baseDate.slice(4,6)+'/'+kmaResult.value.baseDate.slice(6,8)+' '+kmaResult.value.baseTime.slice(0,2)+':'+kmaResult.value.baseTime.slice(2,4)+' 관측'
+  :'기상청 조회 실패 · 대체 자료';
+ return {label,source,detail}
 }
+function showWeatherSource(result){
+ const element=$('weatherObservation');
+ if(element)element.textContent=result.source+' 기온 · '+result.detail
+}
+
 /* Browser-side city/suburb lookup; the caller's GPS coordinates are sent
    to BigDataCloud only when GPS access was granted. Neither the returned
    address nor the coordinates are persisted. */
@@ -1411,21 +1427,22 @@ async function loadCheongjuWeather(){
   if(weatherCache.text&&weatherCache.source===source&&Date.now()-weatherCache.at<WEATHER_TTL
    &&weatherNearSamePlace(weatherCache,location)){
    host.textContent=weatherCache.text;
+   if(weatherCache.detail)showWeatherSource(weatherCache.detail);
    await regionTask;return
   }
   host.textContent='날씨 조회 중…';
   try{
-   const label=await fetchWeatherAt(location);
-   weatherCache.at=Date.now();weatherCache.text=label;
+   const result=await fetchWeatherAt(location);
+   weatherCache.at=Date.now();weatherCache.text=result.label;
    weatherCache.lat=location.lat;weatherCache.lon=location.lon;
-   weatherCache.source=source;host.textContent=label
+   weatherCache.source=source;weatherCache.detail=result;host.textContent=result.label;showWeatherSource(result)
   }catch(error){
    if(gps){
     try{
      const fallback=await fetchWeatherAt(CHEONGJU_WEATHER);
-     weatherCache.at=Date.now();weatherCache.text=fallback;
+     weatherCache.at=Date.now();weatherCache.text=fallback.label;
      weatherCache.lat=CHEONGJU_WEATHER.lat;weatherCache.lon=CHEONGJU_WEATHER.lon;
-     weatherCache.source='city';host.textContent=fallback;
+     weatherCache.source='city';weatherCache.detail=fallback;host.textContent=fallback.label;showWeatherSource(fallback);
      fallbackWeather=true;showWeatherRegion('청주시 기준');
      await regionTask;return
     }catch(fallbackError){recordError(fallbackError,'날씨 정보')}
@@ -1480,4 +1497,4 @@ $('refresh').onclick=()=>{
 setInterval(()=>{if(!document.hidden&&retryTimer===null&&!authBlocked)refresh()},15000);
 setInterval(()=>{if(!document.hidden){const now=Date.now();document.querySelectorAll('[data-eta]').forEach(e=>tickEta(e,now))}},1000);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)clearRetry();else{resetFailures();refresh()}});
-switchTab(cfg.key?'home':'settings');
+switchTab('home');
