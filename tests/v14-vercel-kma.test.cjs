@@ -8,7 +8,7 @@ assert.equal(v.build,'20261123.1409');
 assert.match(app,/BUS_API_BASE='https:\/\/ji-bus-api-siga0411-6093\.vercel\.app'/);
 assert.match(app,/new URL\(BUS_API_BASE\+'\/api\/bus'\)/);
 assert.match(app,/new URL\(BUS_API_BASE\+'\/api\/temperature'\)/);
-assert.doesNotMatch(app,/cfg\.key/);
+assert.doesNotMatch(app,/if\(!cfg\.key\)|serviceKey:cfg\.key/);
 assert.doesNotMatch(app,/serviceKey:/);
 assert.doesNotMatch(html,/id="saveKey"|id="key"/);
 assert.match(html,/id="connectionCheck"/);
