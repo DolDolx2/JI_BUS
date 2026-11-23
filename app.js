@@ -1338,13 +1338,20 @@ async function fetchWeatherAt(location){
    to BigDataCloud only when GPS access was granted. Neither the returned
    address nor the coordinates are persisted. */
 function regionNameFromGeocode(data){
- const clean=value=>typeof value==='string'?value.trim().replace(/\s+/g,' '):'';
  if(!data||typeof data!=='object')return '';
+ const clean=value=>{
+  if(typeof value!=='string')return '';
+  // '오창대읍' describes the 4th-grade administrative office status,
+  // whereas the legal locality name remains '오창읍'.
+  return value.trim().replace(/\s+/g,' ').replace(/오창대읍/g,'오창읍')
+ };
  const city=clean(data.city),locality=clean(data.locality);
  const subdivision=clean(data.principalSubdivision);
+ const administrative=Array.isArray(data.localityInfo?.administrative)?
+  data.localityInfo.administrative.map(x=>clean(x?.name)):[];
+ const district=administrative.find(x=>/구$/.test(x)&&x!==city&&x!==subdivision)||'';
  const names=[];
- // Prefer the most meaningful city + neighbourhood pair without repeating text.
- for(const part of [city||subdivision,locality]){
+ for(const part of [city||subdivision,district,locality]){
   if(!part)continue;
   if(names.some(x=>x===part||x.endsWith(part)||part.endsWith(x)))continue;
   names.push(part)
