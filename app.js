@@ -103,13 +103,28 @@ async function findStops(query){
  try{for(const x of await api('stop','getSttnNoList',{nodeNm:q})){let s=node(x);if(s.id)m.set(s.id,s)}}catch(e){if(!m.size)throw e;recordError(e,'정류장 검색')}
  return [...m.values()].filter(s=>searchRank(s,q)<999).sort((a,b)=>searchRank(a,q)-searchRank(b,q)||a.name.localeCompare(b.name,'ko')||a.no.localeCompare(b.no)).slice(0,50)
 }
+// Opposite bus platforms may use reversed compound names: 삼성SDI.에코앤드림 / 에코앤드림.삼성SDI.
+// A stop is a candidate only if names refer to the same place AND its coordinates are within 120m.
+function stopPlaceKey(name){
+ return String(name||'').split(/[·.,/]/).map(x=>normStop(x)).filter(Boolean).sort().join('|')
+}
+function samePhysicalStopPlace(a,b){
+ if(!a||!b||stopPlaceKey(a.name)!==stopPlaceKey(b.name))return false;
+ const numbers=[a.lat,a.lon,b.lat,b.lon].map(Number);
+ if(!numbers.every(Number.isFinite)||numbers.some(x=>x===0))return a.id===b.id;
+ const [lat1,lon1,lat2,lon2]=numbers,rad=Math.PI/180;
+ const dlat=(lat1-lat2)*rad,dlon=(lon1-lon2)*rad;
+ const h=Math.sin(dlat/2)**2+Math.cos(lat1*rad)*Math.cos(lat2*rad)*Math.sin(dlon/2)**2;
+ return 6371000*2*Math.asin(Math.sqrt(Math.min(1,h)))<=120
+}
 async function expandDirectionalStops(s){
  const map=new Map([[s.id,s]]);
- try{for(const x of await findStops(s.name))if(selectedMatches(x,s))map.set(x.id,x)}catch(e){recordError(e,'방향 후보')}
+ try{for(const x of await findStops(s.name))if(samePhysicalStopPlace(x,s))map.set(x.id,x)}catch(e){recordError(e,'방향 후보')}
  if(Number.isFinite(s.lat)&&Number.isFinite(s.lon)&&s.lat!==0&&s.lon!==0){
- try{const nearby=await api('stop','getCrdntPrxmtSttnList',{gpsLati:String(s.lat),gpsLong:String(s.lon)});
- for(const x of nearby){const stop=node(x);if(stop.id&&selectedMatches(stop,s))map.set(stop.id,stop)}
- }catch(e){recordError(e,'주변 정류소 후보')}
+  try{
+   const nearby=await api('stop','getCrdntPrxmtSttnList',{gpsLati:String(s.lat),gpsLong:String(s.lon)});
+   for(const x of nearby){const stop=node(x);if(stop.id&&samePhysicalStopPlace(stop,s))map.set(stop.id,stop)}
+  }catch(e){recordError(e,'주변 정류소 후보')}
  }
  return [...map.values()]
 }
@@ -885,6 +900,20 @@ async function searchTrip(){
  directSearchSession=null;resetView();
  $('otherSelection').textContent='우선 이용할 수 있는 직행 노선을 찾는 중…';
  try{
+  // Resolve both directions up-front: the opposite platform often has
+  // another stop ID (and the compound name may be reversed).
+  searchProgressStep(work,'승차·하차 정류장의 양방향 위치를 확인하고 있습니다…');
+  const expand=async list=>{
+   const variants=await Promise.all(list.slice(0,3).map(stop=>expandDirectionalStops(stop)));
+   return [...new Map(variants.flat().map(stop=>[stop.id,stop])).values()]
+  };
+  const [origins,destinations]=await Promise.all([
+   expand(otherTrip.fromCandidates.length?otherTrip.fromCandidates:[otherTrip.from]),
+   expand(otherTrip.toCandidates.length?otherTrip.toCandidates:[otherTrip.to])
+  ]);
+  if(token!==revision)return;
+  otherTrip.fromCandidates=origins;
+  otherTrip.toCandidates=destinations;
   const ids=new Map();
   searchProgressStep(work,'목적지 경유 노선을 확인하고 있습니다…');
   for(const dest of (otherTrip.toCandidates.length?otherTrip.toCandidates:[otherTrip.to]).slice(0,3)){
