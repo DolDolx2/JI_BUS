@@ -1,12 +1,12 @@
-// V1.4 Build 10: city/neighbourhood formatting and GPS weather fallbacks.
+// V1.4 Build 11: city/neighbourhood formatting and GPS weather fallbacks.
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
 const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
 const version=JSON.parse(fs.readFileSync(path.join(__dirname,'..','version.json'),'utf8'));
-assert.equal(version.build,'20261123.1410');
-assert.equal(version.label,'Build 10');
+assert.equal(version.build,'20261123.1411');
+assert.equal(version.label,'Build 11');
 assert.match(html,/id="weatherRegion" aria-live="polite"/);
 assert.match(html,/BigDataCloud/);
 assert.match(app,/api\.bigdatacloud\.net\/data\/reverse-geocode-client/);
@@ -45,5 +45,5 @@ async function geocode(response,initialCache={}){
  assert.match(result.url,/longitude=127\.49/);
  assert.match(result.url,/localityLanguage=ko/);
  assert.equal(result.cache.label,'청주시 사직동');
- console.log('V1.4 Build 10 weather locality smoke PASS');
+ console.log('V1.4 Build 11 weather locality smoke PASS');
 })().catch(e=>{console.error(e);process.exitCode=1});
