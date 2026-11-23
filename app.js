@@ -387,6 +387,8 @@ function directCard(r,a,location,first,at,info){
  setEta(o.eta,v?.arrtime,at);
  if(!o.timeline){o.timeline=makeTimeline(r);o.details.append(o.timeline.wrap)}
  updateTimeline(o.timeline,r,location.v,location.e||'');
+ if(!o.naverMapLinks){o.naverMapLinks=el('div',undefined,'externalMaps');o.box.append(o.naverMapLinks)}
+ attachNaverTransitLinks(o.naverMapLinks,r.stops[r.i],r.stops[r.j]);
  return key
 }
 
@@ -434,6 +436,8 @@ async function showTransfers(origin,arrivalRows,rev,at){
   textTo(o.flag,'환승 성립 및 최종 도착시간 미확정');
   setEta(o.eta,arrivalsFor(first.rows,p.first.id)[0]?.arrtime,first.at);
   textTo(o.summary,'두 차량 위치 · 현재 기준');
+  if(!o.naverMapLinks){o.naverMapLinks=el('div',undefined,'externalMaps');o.box.append(o.naverMapLinks)}
+  attachNaverTransitLinks(o.naverMapLinks,p.first.stops[p.first.i],p.second.stops[p.second.j]);
   if(!o.legs.length){for(let i=0;i<2;i++){const d=el('details'),s=el('summary'),v=el('span',undefined,'legEta'),t=makeTimeline(i?p.second:p.first);d.append(s,v,t.wrap);o.details.append(d);o.legs.push({d,s,v,t})}}
   for(const [i,r] of [p.first,p.second].entries()){const leg=o.legs[i],l=loc.get(r.id);textTo(leg.s,(i+1)+'구간 · '+r.no+'번'+(directionLabel(r)?' · '+directionLabel(r):'')+' · '+r.stops[r.i].name+' 탑승');
    setEta(leg.v,i?arrivalsFor(second.rows,r.id)[0]?.arrtime:arrivalsFor(first.rows,r.id)[0]?.arrtime,i?second.at:first.at);
@@ -507,15 +511,15 @@ async function refresh(){
 /* V1.1: route-based favorites, never overwrite legacy saved settings. */
 function validStop(s){return !!s&&typeof s.id==='string'&&!!s.id&&typeof s.name==='string'}
 function sameTrip(a,b){return a&&b&&a.from.id===b.from.id&&a.to.id===b.to.id}
-function makeTrip(title,from,to,alt=null){
- return {id:'trip-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),title,from,to,...(validStop(alt)?{alt}:{})}
+function makeTrip(title,from,to){
+ return {id:'trip-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),title,from,to}
 }
 function migrateTrips(){
  if(cfg.tripMigrationV11)return;
  const list=cfg.tripFavorites.filter(t=>validStop(t?.from)&&validStop(t?.to));
- const add=(title,from,to,alt)=>{
+ const add=(title,from,to)=>{
   if(!validStop(from)||!validStop(to))return;
-  const trip=makeTrip(title,from,to,alt);
+  const trip=makeTrip(title,from,to);
   if(!list.some(t=>sameTrip(t,trip)))list.push(trip)
  };
  add('회사 출근',cfg.stops.board,cfg.stops.exit);
@@ -525,6 +529,17 @@ function migrateTrips(){
  save()
 }
 migrateTrips();
+// Retire obsolete alternate-alighting fields; keep trip name and true endpoints.
+let cleanedLegacyAlternates=false;
+for(const trip of cfg.tripFavorites){
+ if(trip&&Object.prototype.hasOwnProperty.call(trip,'alt')){
+  delete trip.alt;cleanedLegacyAlternates=true
+ }
+}
+if(cfg.stops&&Object.prototype.hasOwnProperty.call(cfg.stops,'alt')){
+ delete cfg.stops.alt;cleanedLegacyAlternates=true
+}
+if(cleanedLegacyAlternates)save();
 const otherTrip={from:null,to:null,fromCandidates:[],toCandidates:[],routes:[],ready:false,transferRequested:false};
 function tripSummary(){
  return otherTrip.from&&otherTrip.to?otherTrip.from.name+' → '+otherTrip.to.name:'출발·도착 정류장을 선택하세요.'
@@ -1087,6 +1102,32 @@ function stopHasMapCoordinates(stop){
  return Number.isFinite(Number(stop?.lat))&&Number.isFinite(Number(stop?.lon))&&
   Number(stop.lat)>=33&&Number(stop.lat)<=39&&Number(stop.lon)>=124&&Number(stop.lon)<=132
 }
+// Native NAVER Maps transit directions with independent browser fallback.
+function naverTransitUrls(from,to){
+ if(!stopHasMapCoordinates(from)||!stopHasMapCoordinates(to))return null;
+ return {
+  native:'nmap://route/public?slat='+Number(from.lat)+'&slng='+Number(from.lon)+
+   '&sname='+encodeURIComponent(from.name||'출발 정류장')+
+   '&dlat='+Number(to.lat)+'&dlng='+Number(to.lon)+
+   '&dname='+encodeURIComponent(to.name||'도착 정류장')+
+   '&appname='+encodeURIComponent('https://doldolx2.github.io/JI_BUS/'),
+  web:'https://map.naver.com/p/search/'+encodeURIComponent('청주시 '+(to.name||'버스 정류장'))
+ }
+}
+function attachNaverTransitLinks(host,from,to){
+ const pair=String(from?.id||'')+'|'+String(to?.id||'');
+ if(host.dataset.naverMapPair===pair)return;
+ host.replaceChildren();
+ host.dataset.naverMapPair=pair;
+ const urls=naverTransitUrls(from,to);
+ if(!urls)return;
+ const app=el('a','네이버지도 길찾기','mapAppLink');
+ app.href=urls.native;app.rel='noopener';
+ app.setAttribute('aria-label','네이버지도 앱에서 '+from.name+'에서 '+to.name+'까지 대중교통 길찾기');
+ const web=el('a','지도 웹 보기','mapAppLink');
+ web.href=urls.web;web.target='_blank';web.rel='noopener noreferrer';
+ host.append(app,web)
+}
 function nativeMapUrls(stop){
  if(!stopHasMapCoordinates(stop))return null;
  const lat=Number(stop.lat),lon=Number(stop.lon),title=encodeURIComponent(stop.name||'버스 정류장');
@@ -1160,6 +1201,9 @@ function showSmartResults(ranked,partial){
   if(advice)detail.append(el('p',advice.label,'leaveAdvice'));
   detail.append(el('p','도보 및 이동시간은 추정치이며 실제 경로·소요시간과 다를 수 있습니다.','muted'));
   attachMapLinks(detail,item.board);
+  const transitLinks=el('div',undefined,'externalMaps');
+  attachNaverTransitLinks(transitLinks,item.board,item.exit);
+  detail.append(transitLinks);
   card.append(detail,button);host.append(card)
  });
  if(partial)host.append(el('p','일부 정류장 도착정보를 확인하지 못해 추천 순위가 달라질 수 있습니다.','muted'));
