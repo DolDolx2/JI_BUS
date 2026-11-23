@@ -62,3 +62,6 @@
 .dashWeatherHead #weatherRegion{display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dashWeatherHead #todayDate{flex-shrink:0;white-space:nowrap}
 @media(max-width:360px){.dashWeatherHead{gap:5px;font-size:11px}}
+
+/* Build 09: observation source and its base time, kept subtle under the temperature. */
+.weatherObservation{font-size:11px;color:#526f82;margin-top:3px;line-height:1.35;min-height:14px}
