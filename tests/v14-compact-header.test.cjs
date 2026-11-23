@@ -7,7 +7,7 @@ const version=JSON.parse(fs.readFileSync(path.join(__dirname,'..','version.json'
 assert.equal(version.version,'V1.4');
 assert.equal(version.build,'20261123.1407');
 assert.equal(version.label,'Build 07');
-assert.match(html,/const current='20261122\.1406'/);
+assert.match(html,/const current='20261123\.1407'/);
 assert.match(html,/<div class="brandLine"><h1>JI BUS<\/h1><small>V1\.4/);
 assert.match(html,/Build 07<\/small><\/div><button id="refresh"/);
 assert.match(css,/\.topbar \.brandLine\{display:flex;align-items:baseline/);
