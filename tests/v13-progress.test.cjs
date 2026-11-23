@@ -19,7 +19,7 @@ assert.match(app,/endSearchProgress\(work\)/);
 assert.match(app,/controller\.abort\(\)/);
 assert.match(app,/activeSearchProgress!==progress/);
 assert.doesNotMatch(app,/setInterval\([^\n]*beginSearchProgress/);
-const begin=app.indexOf('let activeSearchProgress=null;'),end=app.indexOf('const services=',begin);
+const begin=app.indexOf('let activeSearchProgress=null;'),end=app.indexOf('const BUS_API_BASE=',begin);
 assert(begin>=0&&end>begin);
 const modal={hidden:true},message={textContent:''},title={textContent:''},cancel={focus(){},onclick:null};
 const elements={searchProgressOverlay:modal,searchProgressMessage:message,searchProgressTitle:title,searchProgressCancel:cancel};
