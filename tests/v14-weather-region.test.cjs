@@ -1,12 +1,12 @@
-// V1.4 Build 07: city/neighbourhood formatting and GPS weather fallbacks.
+// V1.4 Build 08: city/neighbourhood formatting and GPS weather fallbacks.
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
 const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
 const version=JSON.parse(fs.readFileSync(path.join(__dirname,'..','version.json'),'utf8'));
-assert.equal(version.build,'20261123.1407');
-assert.equal(version.label,'Build 07');
+assert.equal(version.build,'20261123.1408');
+assert.equal(version.label,'Build 08');
 assert.match(html,/id="weatherRegion" aria-live="polite"/);
 assert.match(html,/BigDataCloud/);
 assert.match(app,/api\.bigdatacloud\.net\/data\/reverse-geocode-client/);
@@ -19,6 +19,8 @@ const regionFn=app.slice(app.indexOf('function regionNameFromGeocode('),app.inde
 assert(regionFn.length>80);
 const regionName=new Function(regionFn+';return regionNameFromGeocode')();
 assert.equal(regionName({city:'청주시',locality:'복대동'}),'청주시 복대동');
+assert.equal(regionName({city:'청주시',locality:'오창대읍'}),'청주시 오창읍');
+assert.equal(regionName({city:'청주시',locality:'오창대읍',localityInfo:{administrative:[{name:'청원구'}]}}),'청주시 청원구 오창읍');
 assert.equal(regionName({city:'청주시',locality:'청주시'}),'청주시');
 assert.equal(regionName({city:'',principalSubdivision:'충청북도',locality:'복대동'}),'충청북도 복대동');
 assert.equal(regionName({city:'',locality:''}),'');
@@ -43,5 +45,5 @@ async function geocode(response,initialCache={}){
  assert.match(result.url,/longitude=127\.49/);
  assert.match(result.url,/localityLanguage=ko/);
  assert.equal(result.cache.label,'청주시 사직동');
- console.log('V1.4 Build 07 weather locality smoke PASS');
+ console.log('V1.4 Build 08 weather locality smoke PASS');
 })().catch(e=>{console.error(e);process.exitCode=1});
