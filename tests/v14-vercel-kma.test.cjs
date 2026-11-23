@@ -4,7 +4,7 @@ const fs=require('node:fs'),path=require('node:path');
 const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
 const v=JSON.parse(fs.readFileSync(path.join(__dirname,'..','version.json'),'utf8'));
-assert.equal(v.build,'20261123.1411');
+assert.equal(v.build,'20261123.1412');
 assert.match(app,/BUS_API_BASE='https:\/\/ji-bus-api-siga0411-6093\.vercel\.app'/);
 assert.match(app,/new URL\(BUS_API_BASE\+'\/api\/bus'\)/);
 assert.match(app,/new URL\(BUS_API_BASE\+'\/api\/temperature'\)/);
@@ -47,5 +47,5 @@ const weather=(kmaStatus,kmaData,openStatus,openData)=>new Function(
  const stale=await weather(true,{...kma,baseDate:'20261122'},true,om);
  assert.equal(stale.source,'Open-Meteo 대체');
  await assert.rejects(weather(false,null,false,null));
- console.log('Build 11 proxy + KMA weather regression PASS');
+ console.log('Build 12 proxy + KMA weather regression PASS');
 })().catch(e=>{console.error(e);process.exitCode=1});
