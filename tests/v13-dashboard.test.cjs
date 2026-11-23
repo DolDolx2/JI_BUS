@@ -1,13 +1,13 @@
-// JI BUS V1.3 Build 11 — dashboard redesign contract checks.
+// JI BUS V1.3 Build 12 — dashboard redesign contract checks.
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
 const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 const version=JSON.parse(fs.readFileSync(path.join(__dirname,'..','version.json'),'utf8'));
-assert.equal(version.build,'20261123.1411');
-assert.equal(version.label,'Build 11');
-assert.match(html,/V1\.4 <span class="brandDescriptor">· 청주 실시간 버스 <\/span>· Build 11/);
+assert.equal(version.build,'20261123.1412');
+assert.equal(version.label,'Build 12');
+assert.match(html,/V1\.4 <span class="brandDescriptor">· 청주 실시간 버스 <\/span>· Build 12/);
 assert.match(html,/id="dashboardPanel"/);
 assert.match(html,/data-tab="home"/);
 assert.match(html,/id="clockNow"/);
@@ -39,4 +39,4 @@ const allIds=[...html.matchAll(/id="([^"]+)"/g)].map(x=>x[1]);
 assert.equal(allIds.length,new Set(allIds).size,'duplicate DOM id');
 const missing=[...new Set([...app.matchAll(/\$\('([^']+)'\)/g)].map(x=>x[1]))].filter(id=>!allIds.includes(id));
 assert.deepEqual(missing,[]);
-console.log('JI BUS V1.3 Build 11 dashboard contract PASS (31 assertions)');
+console.log('JI BUS V1.3 Build 12 dashboard contract PASS (31 assertions)');

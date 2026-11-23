@@ -1,4 +1,4 @@
-// JI BUS V1.2 Build 11 — splash entry and animation smoke test.
+// JI BUS V1.2 Build 12 — splash entry and animation smoke test.
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -14,8 +14,8 @@ assert.match(html,/src="assets\/cheongju-splash-city\.webp"/);
 assert.match(html,/alt="청주시 시내버스와 도시 풍경"/);
 assert.doesNotMatch(html,/<animateMotion\b/);
 assert.match(html,/id="introCountdown" aria-hidden="true">5<\/span>초 후 자동으로 이동합니다/);
-assert.match(html,/V1\.4 <span class="brandDescriptor">· 청주 실시간 버스 <\/span>· Build 11/);
-assert.match(scripts[1],/const current='20261123\.1411'/);
+assert.match(html,/V1\.4 <span class="brandDescriptor">· 청주 실시간 버스 <\/span>· Build 12/);
+assert.match(scripts[1],/const current='20261123\.1412'/);
 assert.match(html,/<span id="introCountdown" aria-hidden="true">5<\/span>/);
 assert.match(css,/#introCountdown\{/);
 const init=new Function('document','window','setTimeout','clearTimeout',scripts[0]);
@@ -57,4 +57,4 @@ const immediate=fixture();
 immediate.button.handlers.click();
 assert.equal(immediate.splash.removed,true);
 assert.equal(immediate.cancelled.length,5);
-console.log('JI BUS V1.4 Build 11 5-to-1 countdown and splash smoke tests PASS');
+console.log('JI BUS V1.4 Build 12 5-to-1 countdown and splash smoke tests PASS');

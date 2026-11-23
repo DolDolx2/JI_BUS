@@ -1,4 +1,4 @@
-// JI BUS V1.4 Build 11 — stabilization, modular CSS and PIN-gated diagnostics.
+// JI BUS V1.4 Build 12 — stabilization, modular CSS and PIN-gated diagnostics.
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -6,11 +6,11 @@ const path=require('node:path');
 const load=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8');
 const html=load('index.html'),app=load('app.js'),diag=load('diagnostics.js');
 const css=load('styles.css'),ui=load('ui-stabilization.css'),v=JSON.parse(load('version.json'));
-assert.equal(v.build,'20261123.1411');
-assert.equal(v.label,'Build 11');
-assert.match(html,/href="styles\.css\?v=20261123\.1411"/);
-assert.match(html,/href="ui-stabilization\.css\?v=20261123\.1411"/);
-assert.match(html,/src="diagnostics\.js\?v=20261123\.1411"/);
+assert.equal(v.build,'20261123.1412');
+assert.equal(v.label,'Build 12');
+assert.match(html,/href="styles\.css\?v=20261123\.1412"/);
+assert.match(html,/href="ui-stabilization\.css\?v=20261123\.1412"/);
+assert.match(html,/src="diagnostics\.js\?v=20261123\.1412"/);
 assert.doesNotMatch(html,/<style>/);
 assert.match(css,/:root\{color-scheme:light/);
 assert.match(ui,/.smartCompactHead/);
@@ -71,4 +71,4 @@ assert.equal(node('developerCandidateCount').textContent,'6개 중 3개');
 assert.equal(node('developerHistory').children.length,1);
 node('developerClose').handlers.click();
 assert.equal(node('developerPanel').hidden,true);
-console.log('JI BUS V1.4 Build 11 stabilization and developer diagnostics PASS');
+console.log('JI BUS V1.4 Build 12 stabilization and developer diagnostics PASS');
