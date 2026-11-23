@@ -11,7 +11,7 @@ assert.match(html,/aria-label="현재 화면 갱신"/);
 assert.match(html,/class="refreshLabel">갱신/);
 assert.match(css,/\.topbar #refresh\{[\s\S]*display:inline-flex!important/);
 assert.match(css,/@media\(max-width:480px\)\{[\s\S]*\.topbar #refresh \.refreshLabel\{display:none\}/);
-assert.match(html,/const current='20261123\.1407'/);
+assert.match(html,/const current='20261123\.1408'/);
 assert.doesNotMatch(app,/\$\('refresh'\)\.hidden\s*=/);
 assert.match(app,/if\(tab==='search'&&searchMode==='manual'\)/);
 assert.match(app,/else if\(tab==='search'&&searchMode==='smart'\)/);
