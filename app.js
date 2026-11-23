@@ -1646,8 +1646,10 @@ document.addEventListener('visibilitychange',()=>{
  if(document.hidden){clearRetry();cancelConnectionTimer()}
  else{resetFailures();refresh();checkPublicDataConnection()}
 });
-window.addEventListener('offline',()=>{cancelConnectionTimer();connection.state='offline';renderConnectionState()});
-window.addEventListener('online',()=>{connection.failures=0;checkPublicDataConnection()});
+if(typeof window!=='undefined'){
+ window.addEventListener('offline',()=>{cancelConnectionTimer();connection.state='offline';renderConnectionState()});
+ window.addEventListener('online',()=>{connection.failures=0;checkPublicDataConnection()})
+}
 switchTab('home');
 renderConnectionState();
 checkPublicDataConnection();
