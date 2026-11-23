@@ -1,4 +1,4 @@
-// JI BUS V1.4 Build 02 — demand-driven direct/transfer search contracts
+// JI BUS V1.5 Build 02 — demand-driven direct/transfer search contracts
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -8,10 +8,10 @@ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const css=fs.readFileSync(path.join(__dirname,'..','styles.css'),'utf8');
 const version=JSON.parse(fs.readFileSync(path.join(root,'version.json'),'utf8'));
-assert.equal(version.version,'V1.4');
-assert.equal(version.build,'20261123.1413');
-assert.match(html,/const current='20261123\.1413'/);
-assert.match(html,/JI BUS V1\.4/);
+assert.equal(version.version,'V1.5');
+assert.equal(version.build,'20261123.1500');
+assert.match(html,/const current='20261123\.1500'/);
+assert.match(html,/JI BUS V1\.5/);
 assert.match(css,/\.progressiveActions\{/);
 assert.match(app,/const progressiveActions=el\('div',undefined,'progressiveActions'\)/);
 assert.match(app,/const moreDirectButton=el\('button','다른 직행 노선 검색'\)/);
@@ -37,4 +37,4 @@ assert.match(app,/if\(!showAll&&candidates\.length\)break/);
 assert.match(app,/unique\.length>=\(smartState\.showAll\?5:1\)/);
 assert.match(app,/smartState\.showAll=showAll/);
 assert.match(app,/moreSmartButton\.hidden=showAll/);
-console.log('JI BUS V1.4 Build 02 progressive-search contracts PASS (24 checks)');
+console.log('JI BUS V1.5 Build 02 progressive-search contracts PASS (24 checks)');
