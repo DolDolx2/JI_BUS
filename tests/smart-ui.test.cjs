@@ -32,7 +32,7 @@ const routes=[
  {nodeid:'z',nodenm:'목적지',nodeord:3,updowncd:0}
 ];
 async function fetch(url){
- const method=url.pathname.split('/').pop(),nodeId=url.searchParams.get('nodeId');
+ const method=url.searchParams.get('method'),nodeId=url.searchParams.get('nodeId');
  calls.push(method);
  let rows=[];
  if(method==='getCrdntPrxmtSttnList')rows=[
