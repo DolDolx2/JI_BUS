@@ -17,9 +17,9 @@ assert.match(app,/const progressiveActions=el\('div',undefined,'progressiveActio
 assert.match(app,/const moreDirectButton=el\('button','다른 직행 노선 검색'\)/);
 assert.match(app,/const transferButton=el\('button','환승 경로 검색'\)/);
 assert.match(app,/progressiveActions\.hidden=true/);
-assert.match(app,/const entries=\\[\\.\\.\\.ids\\]\\.sort\\(/);
-assert.match(app,/firstPassLimit=Math\\.min\\(24,entries\\.length\\)/);
-assert.match(app,/const boardingRoutes=new Set\\(\\)/);
+assert.match(app,/const entries=\[\.\.\.ids\]\.sort\(/);
+assert.match(app,/firstPassLimit=Math\.min\(24,entries\.length\)/);
+assert.match(app,/const boardingRoutes=new Set\(\)/);
 assert.match(app,/const candidates=\[\];let chosen=null,attempted=0/);
 assert.match(app,/const shortlist=\[\];const used=new Set\(\)/);
 assert.match(app,/Promise\.allSettled\(boardIds\.map\(/);
