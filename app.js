@@ -12,6 +12,8 @@ if(!Array.isArray(cfg.recentTrips))cfg.recentTrips=[];
 let retryCount=0,retryTimer=null,authBlocked=false;
 const logErrors=[];
 const save=()=>localStorage.setItem(store,JSON.stringify(cfg));
+// Remove the superseded browser-stored TAGO key while preserving all trips and favorites.
+if(Object.prototype.hasOwnProperty.call(cfg,'key')){delete cfg.key;save()}
 const arr=v=>Array.isArray(v)?v:v&&typeof v==='object'?[v]:[];
 const el=(tag,txt,cls)=>{const e=document.createElement(tag);if(txt!==undefined)e.textContent=txt;if(cls)e.className=cls;return e};
 const status=(s,err=false)=>{const e=$(tab==='settings'?'settingsStatus':'status')||$('status');e.textContent=s;e.className=err?'error':'muted'};
@@ -589,6 +591,16 @@ function renderFavorites(){
   actions.append(open,rename,up,down,remove);card.append(actions);host.append(card)
  })
 }
+$('connectionCheck').onclick=async()=>{
+ const button=$('connectionCheck'),label=$('settingsStatus');
+ button.disabled=true;label.textContent='버스정보 서비스 연결 확인 중…';
+ try{
+  const codes=await api('arrival','getCtyCodeList');
+  label.textContent=codes.some(x=>String(x.citycode)==='33010')?'버스정보 서비스 정상 연결 · 청주시 조회 가능':'연결 성공 · 청주시 정보 확인 필요';
+  label.className='muted'
+ }catch(error){label.textContent='연결 확인 실패: '+error.message;label.className='error';recordError(error,'서비스 연결')}
+ finally{button.disabled=false}
+};
 const fromControl=stopSearchControl($('otherFromResults'),stops=>{
  otherTrip.from=stops[0];otherTrip.fromCandidates=stops;otherTrip.ready=false;otherTrip.routes=[];directSearchSession=null;progressiveActions.hidden=true;otherTrip.transferRequested=false;
  $('otherSelection').textContent=tripSummary();$('saveTrip').disabled=!(otherTrip.from&&otherTrip.to);
