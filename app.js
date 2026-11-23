@@ -506,7 +506,7 @@ async function refresh(){
 
 /* V1.1: route-based favorites, never overwrite legacy saved settings. */
 function validStop(s){return !!s&&typeof s.id==='string'&&!!s.id&&typeof s.name==='string'}
-function sameTrip(a,b){return a&&b&&a.from.id===b.from.id&&a.to.id===b.to.id&&String(a.alt?.id||'')===String(b.alt?.id||'')}
+function sameTrip(a,b){return a&&b&&a.from.id===b.from.id&&a.to.id===b.to.id}
 function makeTrip(title,from,to,alt=null){
  return {id:'trip-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),title,from,to,...(validStop(alt)?{alt}:{})}
 }
@@ -518,7 +518,7 @@ function migrateTrips(){
   const trip=makeTrip(title,from,to,alt);
   if(!list.some(t=>sameTrip(t,trip)))list.push(trip)
  };
- add('회사 출근',cfg.stops.board,cfg.stops.exit,cfg.stops.alt);
+ add('회사 출근',cfg.stops.board,cfg.stops.exit);
  const source=[...cfg.favorites,...cfg.routes.flatMap(r=>r.stops)].find(s=>s.id===cfg.last);
  add('집으로 귀가',source,cfg.stops.home);
  cfg.tripFavorites=list;cfg.tripMigrationV11=true;
@@ -529,9 +529,10 @@ const otherTrip={from:null,to:null,fromCandidates:[],toCandidates:[],routes:[],r
 function tripSummary(){
  return otherTrip.from&&otherTrip.to?otherTrip.from.name+' → '+otherTrip.to.name:'출발·도착 정류장을 선택하세요.'
 }
-function setTrip(from,to,alt){
+function setTrip(from,to){
  otherTrip.from=from;otherTrip.to=to;
- otherTrip.fromCandidates=[from];otherTrip.toCandidates=[to,...(validStop(alt)?[alt]:[])];
+ // Legacy alternate alighting stops must never alter the selected destination.
+ otherTrip.fromCandidates=[from];otherTrip.toCandidates=[to];
  otherTrip.ready=false;otherTrip.routes=[];directSearchSession=null;progressiveActions.hidden=true;otherTrip.transferRequested=false;
  $('otherSelection').textContent=tripSummary();
  $('saveTrip').disabled=!(validStop(from)&&validStop(to));
@@ -573,10 +574,10 @@ function renderFavorites(){
   const card=el('article',undefined,'favoriteCard');
   const header=el('div',undefined,'line'),title=el('strong',trip.title||'저장된 구간');
   header.append(title);
-  card.append(header,el('p',trip.from.name+' → '+trip.to.name+(trip.alt?' · 대체 하차 '+trip.alt.name:''),'muted'));
+  card.append(header,el('p',trip.from.name+' → '+trip.to.name,'muted'));
   const actions=el('div',undefined,'favoriteActions');
   const open=el('button','검색','primary');
-  open.onclick=()=>{setTrip(trip.from,trip.to,trip.alt);fromControl.input.value=trip.from.name;toControl.input.value=trip.to.name;setSearchMode('manual');switchTab('search');searchTrip()};
+  open.onclick=()=>{setTrip(trip.from,trip.to);fromControl.input.value=trip.from.name;toControl.input.value=trip.to.name;setSearchMode('manual');switchTab('search');searchTrip()};
   const rename=el('button','이름 변경');rename.onclick=()=>{
    const next=prompt('즐겨찾기 이름',trip.title||'저장된 구간');
    if(next===null)return;
@@ -862,11 +863,22 @@ async function searchTrip(){
    if(token!==revision)return;
    for(const item of items)if(item.routeid)ids.set(String(item.routeid),String(item.routeno||'노선번호 없음'))
   }
-  // A bounded first pass evaluates up to three distinct usable routes.
-  // Initial search is a useful recommendation, not a guaranteed global optimum.
-  const entries=[...ids],checked=new Map(),firstPassLimit=Math.min(6,entries.length);
+  // Prioritize routes that serve both the boarding and requested alighting
+  // stop. The saved legacy alternate stop must never influence route lookup.
+  const boardingRoutes=new Set();
+  try{
+   searchProgressStep(work,'출발 정류장 경유 노선을 대조하고 있습니다…');
+   for(const origin of (otherTrip.fromCandidates.length?otherTrip.fromCandidates:[otherTrip.from]).slice(0,3)){
+    const rows=await api('stop','getSttnThrghRouteList',{nodeid:origin.id});
+    if(token!==revision)return;
+    for(const item of rows)if(item.routeid)boardingRoutes.add(String(item.routeid))
+   }
+  }catch(e){recordError(e,'출발 정류장 노선 대조')}
+  // The directional stop sequence is independently validated by stopPairs.
+  const entries=[...ids].sort((a,b)=>Number(boardingRoutes.has(b[0]))-Number(boardingRoutes.has(a[0])));
+  const checked=new Map(),firstPassLimit=Math.min(24,entries.length);
   const candidates=[];let chosen=null,attempted=0;
-  searchProgressStep(work,'직행 후보 최대 3개를 비교하고 있습니다…');
+  searchProgressStep(work,'실제 목적지까지 운행하는 직행 노선을 확인하고 있습니다…');
   for(let offset=0;offset<firstPassLimit&&new Set(candidates.map(x=>x.route.id)).size<3;offset+=3){
    const batch=entries.slice(offset,Math.min(offset+3,firstPassLimit));
    const outcomes=await Promise.allSettled(batch.map(async([id,no])=>({id,variants:await cachedDirectVariants(id,no)})));
@@ -929,7 +941,7 @@ async function searchTrip(){
   progressiveActions.hidden=false;
   $('otherSelection').textContent=chosen?
    '비교된 직행 후보 '+shortlist.length+'개 중 '+chosen.no+'번 우선 추천 · 다른 노선 및 환승은 선택 시 조회':
-   '초기 '+attempted+'개 노선에서 직행을 찾지 못했습니다. 추가 직행 또는 환승을 검색할 수 있습니다.';
+   '초기 '+attempted+'개 노선에서 목적지 직행을 찾지 못했습니다. 다른 직행 노선 검색으로 계속 확인할 수 있습니다.';
   if(chosen){
    searchProgressStep(work,'추천 노선의 실시간 도착정보를 확인하고 있습니다…');
    resetView();await refresh()
