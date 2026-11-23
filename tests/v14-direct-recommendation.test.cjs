@@ -1,4 +1,4 @@
-// V1.4 Build 13 — verify first-pass direct recommendation compares live ETAs.
+// V1.5 Build 01 — verify first-pass direct recommendation compares live ETAs.
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
@@ -53,5 +53,5 @@ async function fetch(url){
  assert.equal(calls.filter(x=>x.startsWith('getRouteAcctoThrghSttnList')).length,3);
  assert.equal(calls.filter(x=>x==='getSttnAcctoArvlPrearngeInfoList').length,1);
  assert.match(get('otherSelection').textContent,/202번 우선 추천/);
- console.log('V1.4 Build 13 candidate ETA comparison PASS');
+ console.log('V1.5 Build 01 candidate ETA comparison PASS');
 })().catch(e=>{console.error(e);process.exitCode=1});
