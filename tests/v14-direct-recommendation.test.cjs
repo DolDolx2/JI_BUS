@@ -26,7 +26,7 @@ const stops=(route)=>{
  return ['O',...middle,'D'].map((id,i)=>({nodeid:id,nodenm:id,nodeord:i+1,updowncd:'0'}))
 };
 async function fetch(url){
- const method=url.pathname.split('/').pop(),id=url.searchParams.get('routeId');
+ const method=url.searchParams.get('method'),id=url.searchParams.get('routeId');
  calls.push(method+(id?':'+id:''));
  let rows=[];
  if(method==='getSttnThrghRouteList')rows=[{routeid:'R1',routeno:'101'},{routeid:'R2',routeno:'202'},{routeid:'R3',routeno:'303'}];
