@@ -12,7 +12,8 @@ const METHODS={
  arrival:new Set(['getSttnAcctoArvlPrearngeInfoList','getCtyCodeList']),
  location:new Set(['getRouteAcctoBusLcList'])
 };
-const PARAMS=new Set(['nodeNm','nodeid','routeId','gpsLati','gpsLong','numOfRows','pageNo']);
+// TAGO endpoints use both nodeid and nodeId (case-sensitive) across services.
+const PARAMS=new Set(['nodeNm','nodeid','nodeId','routeId','gpsLati','gpsLong','numOfRows','pageNo']);
 function cors(req,res){
  res.setHeader('Access-Control-Allow-Origin','https://doldolx2.github.io');
  res.setHeader('Access-Control-Allow-Methods','GET,OPTIONS');
