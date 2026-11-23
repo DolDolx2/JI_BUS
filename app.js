@@ -67,11 +67,11 @@ function cancelSearchProgress(){
 $('searchProgressCancel').onclick=cancelSearchProgress;
 
 const BUS_API_BASE='https://ji-bus-api-siga0411-6093.vercel.app';
-async function api(service,method,params={}){
+async function api(service,method,params={},options={}){
  const u=new URL(BUS_API_BASE+'/api/bus');
  u.search=new URLSearchParams({service,method,...params});
  globalThis.JIBusDiagnostics?.recordApi(service,method);
- const controller=new AbortController(),progress=activeSearchProgress;
+ const controller=new AbortController(),progress=options.background?null:activeSearchProgress;
  if(progress)progress.controllers.add(controller);
  const timer=setTimeout(()=>controller.abort(),15000);
  let res;try{res=await fetch(u,{signal:controller.signal,cache:'no-store'})}
@@ -680,10 +680,12 @@ async function checkPublicDataConnection(){
  connection.inFlight=true;
  connection.state='checking';renderConnectionState();
  try{
-  const cities=await api('arrival','getCtyCodeList');
+  const cities=await api('arrival','getCtyCodeList',{}, {background:true});
   if(!cities.some(city=>String(city.citycode)==='33010'))throw Error('청주시 공공데이터 조회 확인 실패');
   connection.failures=0;connection.state='connected';
   connection.checkedAt=Date.now();renderConnectionState();
+  // A recovered public-data connection must also clear any prior auth block.
+  if(authBlocked){resetFailures();if(tab==='search'&&searchMode==='manual'&&otherTrip.ready)refresh()}
   scheduleConnectionCheck(5*60*1000)
  }catch(error){
   recordError(error,'서비스 연결 확인');
