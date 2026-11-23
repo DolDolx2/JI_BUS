@@ -1,12 +1,12 @@
-// V1.4 Build 07 — always-visible header refresh and contextual actions
+// V1.4 Build 08 — always-visible header refresh and contextual actions
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
 const css=fs.readFileSync(path.join(__dirname,'..','styles.css'),'utf8');
 const version=JSON.parse(fs.readFileSync(path.join(__dirname,'..','version.json'),'utf8'));
-assert.equal(version.build,'20261123.1407');
-assert.equal(version.label,'Build 07');
+assert.equal(version.build,'20261123.1408');
+assert.equal(version.label,'Build 08');
 assert.match(html,/aria-label="현재 화면 갱신"/);
 assert.match(html,/class="refreshLabel">갱신/);
 assert.match(css,/\.topbar #refresh\{[\s\S]*display:inline-flex!important/);
@@ -20,4 +20,4 @@ assert.match(app,/weatherCache\.at=0;/);
 assert.match(app,/loadCheongjuWeather\(\)/);
 assert.match(app,/else if\(tab==='favorites'\)renderFavorites\(\)/);
 assert.match(app,/\$\('refresh'\)\.onclick=\(\)=>\{/);
-console.log('V1.4 Build 07 visible refresh contract PASS (15 checks)');
+console.log('V1.4 Build 08 visible refresh contract PASS (15 checks)');
