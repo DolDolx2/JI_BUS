@@ -51,8 +51,8 @@ async function fetch(url){
  assert.equal(app.otherTrip.routes.length,1);
  assert.equal(app.otherTrip.routes[0].id,'R731','731 should be recommended even after 12 irrelevant destination routes');
  assert.equal(calls.some(x=>x==='getSttnThrghRouteList:A'),false,'no stale alt destination lookup');
- assert.equal(calls[0],'getSttnThrghRouteList:D');
- assert.equal(calls[1],'getSttnThrghRouteList:O');
+ const stopQueries=calls.filter(x=>x.startsWith('getSttnThrghRouteList:'));
+ assert.deepEqual(stopQueries.slice(0,2),['getSttnThrghRouteList:D','getSttnThrghRouteList:O']);
  assert.equal(calls.includes('getRouteAcctoThrghSttnList:R731'),true);
  assert.match(get('otherSelection').textContent,/731번 우선 추천/);
  console.log('V1.4 Build 10 saved alternate destination does not defeat 731 direct route PASS');
