@@ -16,7 +16,7 @@ const save=()=>localStorage.setItem(store,JSON.stringify(cfg));
 if(Object.prototype.hasOwnProperty.call(cfg,'key')){delete cfg.key;save()}
 const arr=v=>Array.isArray(v)?v:v&&typeof v==='object'?[v]:[];
 const el=(tag,txt,cls)=>{const e=document.createElement(tag);if(txt!==undefined)e.textContent=txt;if(cls)e.className=cls;return e};
-const status=(s,err=false)=>{const e=$(tab==='settings'?'settingsStatus':'status')||$('status');e.textContent=s;e.className=err?'error':'muted'};
+const status=(s,err=false)=>{const e=$('status');e.textContent=s;e.className=err?'error':'muted'};
 const recordError=(e,context)=>{logErrors.push({at:Date.now(),context,reason:String(e.message||e).slice(0,160)});if(logErrors.length>20)logErrors.shift();globalThis.JIBusDiagnostics?.recordError(context)};
 const clearRetry=()=>{if(retryTimer!==null)clearTimeout(retryTimer);retryTimer=null};
 function failureClass(e){const code=Number(e?.status);if([401,403].includes(code)||String(e?.message).includes('인증키')||String(e?.message).includes('SERVICE_KEY'))return 'auth';if(code===429)return 'limit';return 'transient'}
@@ -636,16 +636,63 @@ function renderFavorites(){
   actions.append(open,rename,up,down,remove);card.append(actions);host.append(card)
  })
 }
-$('connectionCheck').onclick=async()=>{
- const button=$('connectionCheck'),label=$('settingsStatus');
- button.disabled=true;label.textContent='버스정보 서비스 연결 확인 중…';
+/* V1.5: silent public-data connection monitoring, isolated from bus searches.
+   First three retries are 3s apart; next three 10s; later 30s.
+   Retry-After throttling and tab visibility take precedence. */
+const connection={state:'checking',checkedAt:0,failures:0,timer:null,inFlight:false};
+function connectionDelay(failures,error){
+ const backoff=failures<=3?3000:failures<=6?10000:30000;
+ return Number(error?.status)===429?Math.max(60000,Number(error.retryAfterMs)||0,backoff):backoff
+}
+function renderConnectionState(){
+ const label=$('settingsStatus'),stamp=$('connectionLastChecked');
+ if(connection.state==='connected'){
+  label.textContent='공공데이터 서비스에 정상 연결되었습니다.';
+  label.className='muted';
+ }else if(connection.state==='checking'){
+  label.textContent='공공데이터 서비스 연결을 확인하고 있습니다.';
+  label.className='muted';
+ }else if(connection.state==='offline'){
+  label.textContent='인터넷 연결을 확인할 수 없습니다. 연결되면 자동으로 다시 확인합니다.';
+  label.className='error';
+ }else{
+  label.textContent=connection.failures<=3?
+   '연결이 원활하지 않습니다. 자동으로 다시 연결합니다.':
+   '공공데이터 서비스에 연결할 수 없습니다. 자동 재연결 중입니다.';
+  label.className='error'
+ }
+ stamp.textContent=connection.checkedAt?
+  '마지막 확인 '+new Intl.DateTimeFormat('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(connection.checkedAt)):
+  '연결 확인 이력 없음'
+}
+function cancelConnectionTimer(){
+ if(connection.timer!==null){clearTimeout(connection.timer);connection.timer=null}
+}
+function scheduleConnectionCheck(delay){
+ cancelConnectionTimer();
+ if(document.hidden||navigator.onLine===false)return;
+ connection.timer=setTimeout(()=>{connection.timer=null;checkPublicDataConnection()},delay)
+}
+async function checkPublicDataConnection(){
+ if(connection.inFlight||document.hidden)return;
+ cancelConnectionTimer();
+ if(navigator.onLine===false){connection.state='offline';renderConnectionState();return}
+ connection.inFlight=true;
+ connection.state='checking';renderConnectionState();
  try{
-  const codes=await api('arrival','getCtyCodeList');
-  label.textContent=codes.some(x=>String(x.citycode)==='33010')?'버스정보 서비스 정상 연결 · 청주시 조회 가능':'연결 성공 · 청주시 정보 확인 필요';
-  label.className='muted'
- }catch(error){label.textContent='연결 확인 실패: '+error.message;label.className='error';recordError(error,'서비스 연결')}
- finally{button.disabled=false}
-};
+  const cities=await api('arrival','getCtyCodeList');
+  if(!cities.some(city=>String(city.citycode)==='33010'))throw Error('청주시 공공데이터 조회 확인 실패');
+  connection.failures=0;connection.state='connected';
+  connection.checkedAt=Date.now();renderConnectionState();
+  scheduleConnectionCheck(5*60*1000)
+ }catch(error){
+  recordError(error,'서비스 연결 확인');
+  connection.failures++;
+  connection.state=navigator.onLine===false?'offline':'failed';
+  connection.checkedAt=Date.now();renderConnectionState();
+  scheduleConnectionCheck(connectionDelay(connection.failures,error))
+ }finally{connection.inFlight=false}
+}
 const fromControl=stopSearchControl($('otherFromResults'),stops=>{
  otherTrip.from=stops[0];otherTrip.fromCandidates=stops;otherTrip.ready=false;otherTrip.routes=[];directSearchSession=null;progressiveActions.hidden=true;otherTrip.transferRequested=false;
  $('otherSelection').textContent=tripSummary();$('saveTrip').disabled=!(otherTrip.from&&otherTrip.to);
@@ -1591,9 +1638,16 @@ $('refresh').onclick=()=>{
   loadCheongjuWeather();
   renderRecentTrips();
  }else if(tab==='favorites')renderFavorites();
- else $('settingsStatus').textContent='현재 설정 정보가 표시되어 있습니다.';
+ else checkPublicDataConnection();
 };
 setInterval(()=>{if(!document.hidden&&retryTimer===null&&!authBlocked)refresh()},15000);
 setInterval(()=>{if(!document.hidden){const now=Date.now();document.querySelectorAll('[data-eta]').forEach(e=>tickEta(e,now))}},1000);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)clearRetry();else{resetFailures();refresh()}});
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden){clearRetry();cancelConnectionTimer()}
+ else{resetFailures();refresh();checkPublicDataConnection()}
+});
+window.addEventListener('offline',()=>{cancelConnectionTimer();connection.state='offline';renderConnectionState()});
+window.addEventListener('online',()=>{connection.failures=0;checkPublicDataConnection()});
 switchTab('home');
+renderConnectionState();
+checkPublicDataConnection();
