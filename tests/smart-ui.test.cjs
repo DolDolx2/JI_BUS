@@ -63,7 +63,7 @@ const navigator={geolocation:{getCurrentPosition:success=>success({coords:{latit
  assert(calls.includes('getSttnThrghRouteList'));
  assert(calls.includes('getRouteAcctoThrghSttnList'));
  assert.equal(calls.filter(x=>x==='getSttnAcctoArvlPrearngeInfoList').length,2);
- assert.equal(JSON.parse(persisted.get('ji-bus-v1')).key,'TEST_ONLY_KEY');
+ assert.equal(Object.hasOwn(JSON.parse(persisted.get('ji-bus-v1')),'key'),false,'legacy key must be removed');
  document.hidden=true; // test selection without starting a live refresh
  cards[0].children.at(-1).onclick();
  assert.equal(get('manualPanel').hidden,false);
