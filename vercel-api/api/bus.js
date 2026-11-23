@@ -32,7 +32,7 @@ export default async function handler(req,res){
  const params=new URLSearchParams({serviceKey:key,cityCode:'33010',_type:'json',numOfRows:'1000',pageNo:'1'});
  for(const [name,value] of Object.entries(rest)){
   if(!PARAMS.has(name)||typeof value!=='string'||value.length>100)
-   return res.status(400).json({error:'invalid_parameter'});
+   return res.status(400).json({error:'invalid_parameter',parameter:name.slice(0,40)});
   params.set(name,value)
  }
  if(!/^\d{1,4}$/.test(params.get('numOfRows'))||Number(params.get('numOfRows'))>1000
