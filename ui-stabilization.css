@@ -57,3 +57,8 @@
  .smartCompactEta{font-size:16px}
  #developerGate,#developerPanel{padding:10px}
 }
+
+/* V1.4 Build 07: long GPS locality names must not push the clock/date off-screen. */
+.dashWeatherHead #weatherRegion{display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dashWeatherHead #todayDate{flex-shrink:0;white-space:nowrap}
+@media(max-width:360px){.dashWeatherHead{gap:5px;font-size:11px}}
