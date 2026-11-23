@@ -1,4 +1,4 @@
-// V1.4 Build 08 — verify first-pass direct recommendation compares live ETAs.
+// V1.4 Build 09 — verify first-pass direct recommendation compares live ETAs.
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
@@ -26,7 +26,7 @@ const stops=(route)=>{
  return ['O',...middle,'D'].map((id,i)=>({nodeid:id,nodenm:id,nodeord:i+1,updowncd:'0'}))
 };
 async function fetch(url){
- const method=url.pathname.split('/').pop(),id=url.searchParams.get('routeId');
+ const method=url.searchParams.get('method'),id=url.searchParams.get('routeId');
  calls.push(method+(id?':'+id:''));
  let rows=[];
  if(method==='getSttnThrghRouteList')rows=[{routeid:'R1',routeno:'101'},{routeid:'R2',routeno:'202'},{routeid:'R3',routeno:'303'}];
@@ -53,5 +53,5 @@ async function fetch(url){
  assert.equal(calls.filter(x=>x.startsWith('getRouteAcctoThrghSttnList')).length,3);
  assert.equal(calls.filter(x=>x==='getSttnAcctoArvlPrearngeInfoList').length,1);
  assert.match(get('otherSelection').textContent,/202번 우선 추천/);
- console.log('V1.4 Build 08 candidate ETA comparison PASS');
+ console.log('V1.4 Build 09 candidate ETA comparison PASS');
 })().catch(e=>{console.error(e);process.exitCode=1});

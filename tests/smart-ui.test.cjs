@@ -32,7 +32,7 @@ const routes=[
  {nodeid:'z',nodenm:'목적지',nodeord:3,updowncd:0}
 ];
 async function fetch(url){
- const method=url.pathname.split('/').pop(),nodeId=url.searchParams.get('nodeId');
+ const method=url.searchParams.get('method'),nodeId=url.searchParams.get('nodeId');
  calls.push(method);
  let rows=[];
  if(method==='getCrdntPrxmtSttnList')rows=[
@@ -63,7 +63,7 @@ const navigator={geolocation:{getCurrentPosition:success=>success({coords:{latit
  assert(calls.includes('getSttnThrghRouteList'));
  assert(calls.includes('getRouteAcctoThrghSttnList'));
  assert.equal(calls.filter(x=>x==='getSttnAcctoArvlPrearngeInfoList').length,2);
- assert.equal(JSON.parse(persisted.get('ji-bus-v1')).key,'TEST_ONLY_KEY');
+ assert.equal(Object.hasOwn(JSON.parse(persisted.get('ji-bus-v1')),'key'),false,'legacy key must be removed');
  document.hidden=true; // test selection without starting a live refresh
  cards[0].children.at(-1).onclick();
  assert.equal(get('manualPanel').hidden,false);
