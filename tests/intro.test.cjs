@@ -15,7 +15,7 @@ assert.match(html,/alt="청주시 시내버스와 도시 풍경"/);
 assert.doesNotMatch(html,/<animateMotion\b/);
 assert.match(html,/id="introCountdown" aria-hidden="true">5<\/span>초 후 자동으로 이동합니다/);
 assert.match(html,/V1\.4 <span class="brandDescriptor">· 청주 실시간 버스 <\/span>· Build 08/);
-assert.match(scripts[1],/const current='20261123\.1407'/);
+assert.match(scripts[1],/const current='20261123\.1408'/);
 assert.match(html,/<span id="introCountdown" aria-hidden="true">5<\/span>/);
 assert.match(css,/#introCountdown\{/);
 const init=new Function('document','window','setTimeout','clearTimeout',scripts[0]);
