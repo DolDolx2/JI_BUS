@@ -7,6 +7,8 @@ const version=JSON.parse(fs.readFileSync(path.join(__dirname,'..','version.json'
 assert.equal(version.version,'V1.5');
 assert.equal(version.label,'Build 01');
 assert.equal(version.build,'20261123.1500');
+assert.match(source,/background:true/);
+assert.match(source,/if\(authBlocked\)\{resetFailures\(\)/);
 assert.doesNotMatch(html,/id="connectionCheck"/);
 assert.match(html,/id="settingsStatus"/);
 assert.match(html,/id="connectionLastChecked"/);
@@ -36,9 +38,9 @@ const api=async(service,method)=>{
  return result
 };
 const recordError=(e,context)=>errors.push({e,context});
-const setup=new Function('$','document','navigator','api','recordError','setTimeout','clearTimeout','Intl','Date',
+const setup=new Function('$','document','navigator','api','recordError','setTimeout','clearTimeout','Intl','Date','authBlocked','resetFailures','tab','searchMode','otherTrip','refresh',
  source.slice(start,end)+';return {connection,connectionDelay,checkPublicDataConnection,renderConnectionState,cancelConnectionTimer,scheduleConnectionCheck}');
-const app=setup($,document,navigator,api,recordError,setTimeout,clearTimeout,Intl,Date);
+const app=setup($,document,navigator,api,recordError,setTimeout,clearTimeout,Intl,Date,false,()=>{},'home','manual',{ready:false},()=>{});
 assert.equal(app.connectionDelay(1,{}),3000);
 assert.equal(app.connectionDelay(3,{}),3000);
 assert.equal(app.connectionDelay(4,{}),10000);
